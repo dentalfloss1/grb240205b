@@ -17,13 +17,15 @@ for freq in np.sort(np.unique(plotdata['freq'])):
     curdata = plotdata[plotdata['freq']==freq]
     xdata = curdata['obsdate']
     ydata = curdata['flux']*1e-6
-    yerr = curdata['err']
-    plt.scatter(xdata,ydata,label=f'{freq} GHz',joined=True)
+    yerr = curdata['err']*1e-6
+    p = plt.plot(xdata,ydata,'.-',label=f'{freq} GHz')
+    plt.errorbar(xdata,ydata,yerr=yerr,fmt=' ',color=p[-1].get_color())
 ax = plt.gca()
 ax.set_xscale('log')
 ax.set_yscale('log')
 ax.set_xlabel("Days post trigger")
 ax.set_ylabel("Flux Density (Jy)")
+ax.set_ylim(1e-5,3e-3)
 plt.legend()
 plt.savefig("lightcurve.png")
 plt.close()
