@@ -16,6 +16,7 @@ fig = plt.figure()
 for freq in np.sort(np.unique(plotdata['freq'])):
     curdata = plotdata[plotdata['freq']==freq]
     xdata = curdata['obsdate']
+    print(xdata)
     ydata = curdata['flux']*1e-6
     yerr = curdata['err']*1e-6
     p = plt.plot(xdata,ydata,'.-',label=f'{freq} GHz')
