@@ -42,4 +42,29 @@ for rowno,ax in enumerate(axs):
 # plt.legend()
 plt.savefig("specta.png")
 plt.close()
-    
+fig = plt.figure()
+for plotnum in [8,9]:
+    a = plt.gca()
+    measureddata = plotdata[(plotdata['obs']==plotnum) & (plotdata['flux'] > 0)]
+    limitdata = plotdata[(plotdata['obs']==plotnum) & (plotdata['flux'] < 0)]
+    print(plotnum,measureddata,limitdata)
+    measx = measureddata['freq']
+    measy = measureddata['flux']*1e-6
+    limx = limitdata['freq']
+    limy = limitdata['rms']*1e-6
+    measyerr = np.sqrt(measureddata['ferr']**2 + measureddata['rms']**2)*1e-6
+    print(measyerr)
+    print(measx)
+    p = a.plot(measx,measy,label=f"obs {plotnum}")
+    a.errorbar(measx,measy,yerr=measyerr,fmt=' ',color=p[-1].get_color())
+    a.set_title(f"{measureddata['date'].to_numpy()[0]} days")
+    if limitdata.size > 0:
+        a.scatter(limx,3*limy,marker='v',color=p[-1].get_color())
+    a.set_xscale('log')
+    a.set_yscale('log')
+    a.set_xlabel("Frequency (GHz)")
+    a.set_ylabel("Flux (Jy)")
+    a.set_ylim(1e-5,3e-3)
+    # plt.legend()
+    plt.savefig(f"specta_{plotnum}.png")
+    plt.close()
