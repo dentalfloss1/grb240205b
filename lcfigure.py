@@ -40,14 +40,16 @@ for band,ax in zip(bands,axs):
     bounds0 = tuple([b[0] for b in bounds])
     bounds1 = tuple([b[1] for b in bounds])
     bounds = [bounds0,bounds1]
-
+    
     popt, pcov = curve_fit(wrap_sbpl, xdata, ydata, p0=initial_guess,bounds=bounds)
-    yline = wrap_sbpl(xline, *popt)
-    ax.plot(xline,yline,color='black',alpha=0.5)
     ax.set_xscale('log')
     ax.set_yscale('log')
     ax.set_ylabel("Flux Density (Jy)")
+    ax.set_xlim(1e-1,365)
     ax.set_ylim(1e-5,3e-3)
+    xline = np.linspace(1e-1,365,num=1000)
+    yline = wrap_sbpl(xline, *popt)
+    ax.plot(xline,yline,color='black',alpha=0.5)
     if len(np.unique(curdata['freq'])) >1:
         freq1 = curdata['freq'].min()
         freq2 = curdata['freq'].max()
