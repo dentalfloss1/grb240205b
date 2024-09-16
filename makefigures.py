@@ -36,7 +36,7 @@ def wrap_bigsbpl(ivar, f0, nu0, a1, b1, c1, c2, d):
         res.append(f(nuval))
     return np.array(res)
 initial_guess = [plotdata['flux'].max()*1e-6,25,1,1,-2,1,0.2]
-bounds = [(1e-4,1),(1,100),(0.1,4),(0.1,4),(-4,-0.1),(0.1,4),(0.1,0.8)]
+bounds = [(1e-4,1),(1,100),(0.1,4),(0.1,4),(-4,-0.1),(0.1,4),(0.1,0.5)]
 bounds0 = tuple([b[0] for b in bounds])
 bounds1 = tuple([b[1] for b in bounds])
 bounds = [bounds0,bounds1]
@@ -81,10 +81,10 @@ for band,ax in zip(bands,axs):
     if len(np.unique(curdata['freq'])) >1:
         freq1 = curdata['freq'].min()
         freq2 = curdata['freq'].max()
-        title=f'{freq1} to {freq2} GHz\nF0: {popt[0]:.2E}, tbreak: {popt[1]:.2E}\nalpha1: {popt[2]:.2E}, alpha2: {popt[3]:.2E}, delta: {popt[4]:.2E}'
+        title=f'{freq1} to {freq2} GHz'
         ax.set_title(title)
     else:
-        title=f'{freq} GHz\nF0: {popt[0]:.2E}, tbreak: {popt[1]:.2E}\nalpha1: {popt[2]:.2E}, alpha2: {popt[3]:.2E}, delta: {popt[4]:.2E}'
+        title=f'{freq} GHz'
         ax.set_title(title)
     ax.legend()
     if (freq < 16) and (freq >2):
@@ -200,8 +200,8 @@ for rowno,ax in enumerate(axs):
             a.set_ylim(1e-5,3e-3)
             a.set_xlim(1,25)
             a.plot(xline,yline,color='black',alpha=0.5)
-            title=f"{measureddata['date'].to_numpy()[0]} days\nF0: {popt[0]:.2E}, nubreak: {popt[1]:.2E}\nalpha1: {popt[2]:.2E}, alpha2: {popt[3]:.2E}\ndelta: {popt[4]:.2E}"
-           #  a.set_title(title)
+            title=f"{measureddata['date'].to_numpy()[0]} days"
+            a.set_title(title)
             if limitdata.size > 0:
                 a.scatter(limx,3*limy,marker='v',color=p[-1].get_color())
             a.set_xscale('log')
