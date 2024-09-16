@@ -45,9 +45,8 @@ nudata = plotdata['freq']
 xdata = (tdata,nudata)
 ydata = plotdata['flux']*1e-6
 popt, pcov = curve_fit(wrap_bigsbpl, xdata, ydata, p0=initial_guess,bounds=bounds)
-print(popt,pcov)
-
-
+print("f0:",popt[0],"nu0:",popt[1],f"F propto t**(-{popt[2]}",f"nu propto t**(-{popt[3]}","alpha1:",-popt[4],"alpha2:",-popt[5],"smoothness:",popt[6])
+bigpopt = popt
 for band,ax in zip(bands,axs):
     curdata = plotdata[plotdata['band']==band]
     xdata = curdata['obsdate']
@@ -93,7 +92,6 @@ for band,ax in zip(bands,axs):
         nupk.append(np.average(curdata['freq']))
     for o in np.sort(curdata['obs']):
         subdata = curdata[curdata['obs']==o]
-        print(subdata)
         startobs = subdata['startdate'].min()
         endobs = subdata['stopdate'].max()
         ax.axvspan(startobs,endobs, alpha=0.15, color='gray')
@@ -119,7 +117,6 @@ ax.set_ylabel("Flux Density (Jy)")
 ax.set_ylim(1e-5,3e-3)
 for o in np.sort(curdata['obs']):
     subdata = curdata[curdata['obs']==o]
-    print(subdata)
     startobs = subdata['startdate'].min()
     endobs = subdata['stopdate'].max()
     plt.axvspan(startobs,endobs, alpha=0.15, color='gray')
@@ -153,25 +150,69 @@ ax.set_title(title)
 plt.savefig("nu_m_time.png")
 plt.close()
 
-# # fit lcpk
-# fig = plt.figure()
-# nupk = [nu for nu in nupk if nu>2]
-# tpk = [t for t,nu in zip(tpk,nupk) if nu>2]
-# plt.scatter(tpk,nupk)
-# initial_guess = [9.0/(9.25**(-3/2)),-3/2]
-# bounds = [(100,500),(-3,-0.5)]
-# bounds0 = tuple([b[0] for b in bounds])
-# bounds1 = tuple([b[1] for b in bounds])
-# bounds = [bounds0,bounds1]
-# popt, pcov = curve_fit(powerlaw, tpk, nupk, p0=initial_guess,bounds=bounds)
-# xline = np.linspace(1e-1,365,num=1000)
-# yline = powerlaw(xline, *popt)
-# plt.plot(xline,yline,color='black',alpha=0.5)
-# ax = plt.gca()
-# ax.set_xscale('log')
-# ax.set_yscale('log')
-# title=f'nu_m  alpha:{popt[1]}, expectation: -1.5'
-# ax.set_title(title)
-# plt.savefig("nu_m_time_noLband.png")
-# plt.close()
+popt = bigpopt
+chisq = 0
+dof = len(plotdata) - len(popt)
+for d,nu,f,ferr,rms in plotdata[['obsdate','freq','flux','err','rms']].to_numpy():
+    errtot = np.sqrt(ferr**2 + rms**2)*1e-6
+    model = yline = wrap_bigsbpl((np.array([d]),np.array([nu])), *popt)
+    chisq += ((f*1e-6 - model) / errtot)**2 / dof
+print("red. chisq:",chisq,"dof:",dof)
+
+import matplotlib.pyplot as plt
+import pandas as pd 
+import datetime
+import numpy as np
+from astropy.modeling.powerlaws import SmoothlyBrokenPowerLaw1D as sbpl
+from scipy.optimize import curve_fit
+
+trigger = datetime.datetime(2024, 2, 5, 22, 15, 8, 00)
+def wrap_sbpl(t,amp, tb, a1, a2, d):
+    f = sbpl(amplitude=amp, x_break=tb, alpha_1=a1, alpha_2=a2, delta=d)
+    return f(t)
+
+plotdata = pd.read_csv("spectra.csv")
+numplots = plotdata['obs'].max()
+nrows = int(np.sqrt(numplots))
+ncols = int(np.ceil(np.sqrt(numplots)))
+fig,axs = plt.subplots(nrows,ncols,sharex=True,sharey=True,figsize=(22,22))
+plotnum = 1 
+for rowno,ax in enumerate(axs):
+    for colno,a in enumerate(ax):
+        if plotnum > numplots:
+            fig.delaxes(a)
+        else:
+            measureddata = plotdata[(plotdata['obs']==plotnum) & (plotdata['flux'] > 0)]
+            limitdata = plotdata[(plotdata['obs']==plotnum) & (plotdata['flux'] < 0)]
+            measx = measureddata['freq']
+            measy = measureddata['flux']*1e-6
+            limx = limitdata['freq']
+            limy = limitdata['rms']*1e-6
+            measyerr = np.sqrt(measureddata['ferr']**2 + measureddata['rms']**2)*1e-6
+            p = a.scatter(measx,measy,label=f"obs {plotnum}",color='black')
+            a.errorbar(measx,measy,yerr=measyerr,fmt=' ',color='black')
+            xdata = measx
+            ydata = measy
+            xline = np.linspace(xdata.min(), xdata.max(),num=1000)
+            tday = np.array([measureddata['date'].to_numpy()[0] for f in xline])
+            popt = bigpopt
+            yline = wrap_bigsbpl((tday,xline), *popt)
+            a.set_ylim(1e-5,3e-3)
+            a.set_xlim(1,25)
+            a.plot(xline,yline,color='black',alpha=0.5)
+            title=f"{measureddata['date'].to_numpy()[0]} days\nF0: {popt[0]:.2E}, nubreak: {popt[1]:.2E}\nalpha1: {popt[2]:.2E}, alpha2: {popt[3]:.2E}\ndelta: {popt[4]:.2E}"
+           #  a.set_title(title)
+            if limitdata.size > 0:
+                a.scatter(limx,3*limy,marker='v',color=p[-1].get_color())
+            a.set_xscale('log')
+            a.set_yscale('log')
+            if rowno==(nrows-1):
+                a.set_xlabel("Frequency (GHz)")
+            if colno==0:
+                a.set_ylabel("Flux (Jy)")
+        plotnum += 1
+# plt.legend()
+plt.savefig("specta.png")
+plt.close()
+
 
