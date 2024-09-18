@@ -30,13 +30,13 @@ def wrap_bigsbpl(ivar, f0, nu0, a1, b1, c1, c2, d):
     t, nu = ivar
     res = []
     for tval,nuval in zip(t,nu):
-        fpk = f0*(tval/t0)**-a1
-        nupk = nu0*(tval/t0)**-b1
-        f = sbpl(amplitude=fpk, x_break=nupk, alpha_1=c1, alpha_2=c2, delta=d)
+        fpk = f0*(tval/t0)**a1
+        nupk = nu0*(tval/t0)**b1
+        f = sbpl(amplitude=fpk, x_break=nupk, alpha_1=-c1, alpha_2=-c2, delta=d)
         res.append(f(nuval))
     return np.array(res)
-initial_guess = [plotdata['flux'].max()*1e-6,25,1,1,-2,1,0.2]
-bounds = [(1e-4,1),(1,100),(0.1,4),(0.1,4),(-4,-0.1),(0.1,4),(0.1,0.5)]
+initial_guess = [plotdata['flux'].max()*1e-6,25,-1,-1,2,-1,0.2]
+bounds = [(1e-4,1),(1,100),(-4,-0.1),(-4,-0.1),(0.1,4),(-4,-0.1),(0.1,0.5)]
 bounds0 = tuple([b[0] for b in bounds])
 bounds1 = tuple([b[1] for b in bounds])
 bounds = [bounds0,bounds1]
@@ -45,7 +45,7 @@ nudata = plotdata['freq']
 xdata = (tdata,nudata)
 ydata = plotdata['flux']*1e-6
 popt, pcov = curve_fit(wrap_bigsbpl, xdata, ydata, p0=initial_guess,bounds=bounds)
-print("f0:",popt[0],"nu0:",popt[1],f"F propto t**(-{popt[2]}",f"nu propto t**(-{popt[3]}","alpha1:",-popt[4],"alpha2:",-popt[5],"smoothness:",popt[6])
+print("f0:",popt[0],"nu0:",popt[1],f"alpha1: {popt[2]}",f"beta1: {popt[3]}","gamma1:",popt[4],"gamma2:",popt[5],"smoothness:",popt[6])
 bigpopt = popt
 for band,ax in zip(bands,axs):
     curdata = plotdata[plotdata['band']==band]
@@ -145,9 +145,11 @@ plt.plot(xline,yline,color='black',alpha=0.5)
 ax = plt.gca()
 ax.set_xscale('log')
 ax.set_yscale('log')
-title=f'nu_m  alpha:{popt[1]}, expectation: -1.5'
+ax.set_xlabel("Obs. Date (days post burst)")
+ax.set_ylabel("Obs. Freq. (GHz)")
+title=f'nu_pk  alpha:{popt[1]}'
 ax.set_title(title)
-plt.savefig("nu_m_time.png")
+plt.savefig("nu_pk_time.png")
 plt.close()
 
 popt = bigpopt
