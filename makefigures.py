@@ -25,8 +25,11 @@ bands = ["L","S","C","X","Ku","K"]
 tpk = []
 nupk = []
 
-def wrap_bigsbpl(ivar, f0, nu0, a1, b1, c1, c2, d):
+def wrap_bigsbpl(ivar, f0, nu0, c1, c2):
     t0 = 1
+    a1 = -0.43
+    b1 = -0.5
+    d = 0.4
     t, nu = ivar
     res = []
     for tval,nuval in zip(t,nu):
@@ -35,8 +38,8 @@ def wrap_bigsbpl(ivar, f0, nu0, a1, b1, c1, c2, d):
         f = sbpl(amplitude=fpk, x_break=nupk, alpha_1=-c1, alpha_2=-c2, delta=d)
         res.append(f(nuval))
     return np.array(res)
-initial_guess = [plotdata['flux'].max()*1e-6,25,-1,-1,2,-1,0.2]
-bounds = [(1e-4,1),(1,100),(-4,-0.1),(-4,-0.1),(0.1,4),(-4,-0.1),(0.1,0.5)]
+initial_guess = [plotdata['flux'].max()*1e-6,25,2,-1]
+bounds = [(1e-4,1),(1,100),(0.1,4),(-4,-0.1)]
 bounds0 = tuple([b[0] for b in bounds])
 bounds1 = tuple([b[1] for b in bounds])
 bounds = [bounds0,bounds1]
@@ -45,7 +48,16 @@ nudata = plotdata['freq']
 xdata = (tdata,nudata)
 ydata = plotdata['flux']*1e-6
 popt, pcov = curve_fit(wrap_bigsbpl, xdata, ydata, p0=initial_guess,bounds=bounds)
-print("f0:",popt[0],"nu0:",popt[1],f"alpha1: {popt[2]}",f"beta1: {popt[3]}","gamma1:",popt[4],"gamma2:",popt[5],"smoothness:",popt[6])
+varnames = ["nu0","gamma1","gamma2"]
+text = f"f0={popt[0]}+/-{np.absolute(pcov[0][0])**0.5}"
+print(text)
+for ind,var in enumerate(varnames):
+    vnum = ind+1
+    text = f" {var}={popt[vnum]}+/-{np.absolute(pcov[vnum][vnum])**0.5}"
+    print(text)
+print("alpha1=-0.43")
+print("beta1=-0.5")
+print("d=0.4")
 bigpopt = popt
 for band,ax in zip(bands,axs):
     curdata = plotdata[plotdata['band']==band]
