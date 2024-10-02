@@ -6,6 +6,7 @@ import itertools
 from astropy.modeling.powerlaws import SmoothlyBrokenPowerLaw1D as sbpl
 from scipy.optimize import curve_fit
 from scipy.stats import linregress
+import argparse
 trigger = datetime.datetime(2024, 2, 5, 22, 15, 8, 00)
 
 plotdata = pd.read_csv("grbmeas.csv")
@@ -17,76 +18,104 @@ plotdata['startdate'] = startdate
 plotdata['stopdate'] = stopdate
 # plotdata = plotdata[np.isin(plotdata['freq'],[5.5,9.0])]
 fig,axs = plt.subplots(6,1,figsize=(7,15),sharex=True,sharey=True)
-
+parser = argparse.ArgumentParser()
+parser.add_argument("--freezeParams",action="store_true")
+args = parser.parse_args()
+freezeParams=args.freezeParams
 def wrap_sbpl(t,amp, tb, a1, a2, d):
     f = sbpl(amplitude=amp, x_break=tb, alpha_1=a1, alpha_2=a2, delta=d)
     return f(t)
 bands = ["L","S","C","X","Ku","K"]
 tpk = []
 nupk = []
-
-def wrap_bigsbpl(ivar, f0, nu0, c1, c2):
-    t0 = 1
-    a1 = -0.43
-    b1 = -0.5
-    d = 0.4
-    t, nu = ivar
-    res = []
-    for tval,nuval in zip(t,nu):
-        fpk = f0*(tval/t0)**a1
-        nupk = nu0*(tval/t0)**b1
-        f = sbpl(amplitude=fpk, x_break=nupk, alpha_1=-c1, alpha_2=-c2, delta=d)
-        res.append(f(nuval))
-    return np.array(res)
-initial_guess = [plotdata['flux'].max()*1e-6,25,2,-1]
-bounds = [(1e-4,1),(1,100),(0.1,4),(-4,-0.1)]
-bounds0 = tuple([b[0] for b in bounds])
-bounds1 = tuple([b[1] for b in bounds])
-bounds = [bounds0,bounds1]
-tdata = plotdata['obsdate']
-nudata = plotdata['freq']
-xdata = (tdata,nudata)
-ydata = plotdata['flux']*1e-6
-popt, pcov = curve_fit(wrap_bigsbpl, xdata, ydata, p0=initial_guess,bounds=bounds)
-varnames = ["nu0","gamma1","gamma2"]
-text = f"f0={popt[0]}+/-{np.absolute(pcov[0][0])**0.5}"
-print(text)
-for ind,var in enumerate(varnames):
-    vnum = ind+1
-    text = f" {var}={popt[vnum]}+/-{np.absolute(pcov[vnum][vnum])**0.5}"
+if freezeParams:
+    def wrap_bigsbpl(ivar, f0, nu0, c1, c2):
+        t0 = 1
+        a1 = -0.43
+        b1 = -0.5
+        d = 0.4
+        t, nu = ivar
+        res = []
+        for tval,nuval in zip(t,nu):
+            fpk = f0*(tval/t0)**a1
+            nupk = nu0*(tval/t0)**b1
+            f = sbpl(amplitude=fpk, x_break=nupk, alpha_1=-c1, alpha_2=-c2, delta=d)
+            res.append(f(nuval))
+        return np.array(res)
+    initial_guess = [plotdata['flux'].max()*1e-6,25,2,-1]
+    bounds = [(1e-4,1),(1,100),(0.1,4),(-4,-0.1)]
+    bounds0 = tuple([b[0] for b in bounds])
+    bounds1 = tuple([b[1] for b in bounds])
+    bounds = [bounds0,bounds1]
+    tdata = plotdata['obsdate']
+    nudata = plotdata['freq']
+    xdata = (tdata,nudata)
+    ydata = plotdata['flux']*1e-6
+    popt, pcov = curve_fit(wrap_bigsbpl, xdata, ydata, p0=initial_guess,bounds=bounds)
+    varnames = ["nu0","gamma1","gamma2"]
+    text = f"f0={popt[0]}+/-{np.absolute(pcov[0][0])**0.5}"
     print(text)
-print("alpha1=-0.43")
-print("beta1=-0.5")
-print("d=0.4")
+    for ind,var in enumerate(varnames):
+        vnum = ind+1
+        text = f" {var}={popt[vnum]}+/-{np.absolute(pcov[vnum][vnum])**0.5}"
+        print(text)
+    print("alpha1=-0.43")
+    print("beta1=-0.5")
+    print("d=0.4")
+else:
+    def wrap_bigsbpl(ivar, f0, nu0, a1, b1, c1, c2):
+        t0 = 1
+        d = 0.4
+        t, nu = ivar
+        res = []
+        for tval,nuval in zip(t,nu):
+            fpk = f0*(tval/t0)**a1
+            nupk = nu0*(tval/t0)**b1
+            f = sbpl(amplitude=fpk, x_break=nupk, alpha_1=-c1, alpha_2=-c2, delta=d)
+            res.append(f(nuval))
+        return np.array(res)
+    initial_guess = [plotdata['flux'].max()*1e-6,25,-1,-1, 2,-1]
+    bounds = [(1e-4,1),(1,100),(-4,-0.1),(-4,-0.1),(0.1,4),(-4,-0.1)]
+    bounds0 = tuple([b[0] for b in bounds])
+    bounds1 = tuple([b[1] for b in bounds])
+    bounds = [bounds0,bounds1]
+    tdata = plotdata['obsdate']
+    nudata = plotdata['freq']
+    xdata = (tdata,nudata)
+    ydata = plotdata['flux']*1e-6
+    popt, pcov = curve_fit(wrap_bigsbpl, xdata, ydata, p0=initial_guess,bounds=bounds)
+    varnames = ["nu0","alpha1","beta1","gamma1","gamma2"]
+    text = f"f0={popt[0]}+/-{np.absolute(pcov[0][0])**0.5}"
+    print(text)
+    for ind,var in enumerate(varnames):
+        vnum = ind+1
+        text = f" {var}={popt[vnum]}+/-{np.absolute(pcov[vnum][vnum])**0.5}"
+        print(text)
+    print("d=0.4")
 bigpopt = popt
 for band,ax in zip(bands,axs):
     curdata = plotdata[plotdata['band']==band]
+    # print(curdata)
     xdata = curdata['obsdate']
     ydata = curdata['flux']*1e-6
     yerr = np.sqrt(curdata['err']**2 + curdata['rms']**2)*1e-6
     marker = itertools.cycle((',', '+', '.', 'o', '*'))
     for freq in np.unique(curdata['freq']):
-        subcurdata = curdata[curdata['freq']==freq]
-        subxdata = subcurdata['obsdate']
-        subydata = subcurdata['flux']*1e-6
-        subyerr = np.sqrt(subcurdata['err']**2 + subcurdata['rms']**2)*1e-6
-        ax.errorbar(subxdata,subydata,yerr=subyerr,fmt=' ',color='black')
-        ax.scatter(subxdata,subydata,label=f'{freq} GHz',marker=next(marker),color='black')
-   #  xline = np.linspace(xdata.min(), xdata.max(),num=1000)
-   #  initial_guess = [ydata.max(),xdata[ydata==ydata.max()].to_numpy()[0],-0.8,0.8,0.2]
-   #  bounds = [(1e-4,1e-3),(1e-1,100),(-2,-0.2),(0.2,2),(0.1,0.8)]
-   #  bounds0 = tuple([b[0] for b in bounds])
-   #  bounds1 = tuple([b[1] for b in bounds])
-   #  bounds = [bounds0,bounds1]
+       subcurdata = curdata[curdata['freq']==freq]
+       subxdata = subcurdata['obsdate']
+       subydata = subcurdata['flux']*1e-6
+       subyerr = np.sqrt(subcurdata['err']**2 + subcurdata['rms']**2)*1e-6
+       ax.errorbar(subxdata,subydata,yerr=subyerr,fmt=' ',color='black')
+       ax.scatter(subxdata,subydata,label=f'{freq} GHz',marker=next(marker),color='black')
    #      
    #  
    #  popt, pcov = curve_fit(wrap_sbpl, xdata, ydata, p0=initial_guess,bounds=bounds)
     ax.set_xscale('log')
     ax.set_yscale('log')
     ax.set_ylabel("Flux Density (Jy)")
-    ax.set_xlim(1e-1,365)
+    ax.set_xlim(1e-2,365)
     ax.set_ylim(1e-5,3e-3)
-    xline = np.linspace(1e-1,365,num=1000)
+    xline = np.linspace(1e-2,365,num=1000)
     nu = np.array([freq for f in xline])
     yline = wrap_bigsbpl((xline,nu), *popt)
     ax.plot(xline,yline,color='black',alpha=0.5)
@@ -102,7 +131,8 @@ for band,ax in zip(bands,axs):
     if (freq < 16) and (freq >2):
         tpk.append(popt[1])
         nupk.append(np.average(curdata['freq']))
-    for o in np.sort(curdata['obs']):
+    for o in np.sort(np.unique(curdata['obs'])):
+   
         subdata = curdata[curdata['obs']==o]
         startobs = subdata['startdate'].min()
         endobs = subdata['stopdate'].max()
@@ -127,7 +157,7 @@ ax.set_xscale('log')
 ax.set_yscale('log')
 ax.set_ylabel("Flux Density (Jy)")
 ax.set_ylim(1e-5,3e-3)
-for o in np.sort(curdata['obs']):
+for o in np.sort(np.unique(curdata['obs'])):
     subdata = curdata[curdata['obs']==o]
     startobs = subdata['startdate'].min()
     endobs = subdata['stopdate'].max()
@@ -151,7 +181,7 @@ bounds0 = tuple([b[0] for b in bounds])
 bounds1 = tuple([b[1] for b in bounds])
 bounds = [bounds0,bounds1]
 popt, pcov = curve_fit(powerlaw, tpk, nupk, p0=initial_guess,bounds=bounds)
-xline = np.linspace(1e-1,365,num=1000)
+xline = np.linspace(1e-2,365,num=1000)
 yline = powerlaw(xline, *popt)
 plt.plot(xline,yline,color='black',alpha=0.5)
 ax = plt.gca()
