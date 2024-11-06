@@ -63,19 +63,22 @@ if freezeParams:
     print("beta1=-0.5")
     print("d=0.4")
 else:
-    def wrap_bigsbpl(ivar, f0, nu0, a1, b1, c1, c2):
+    def wrap_bigsbpl(ivar, f0, nu0, a2, b2, c1, c2,t_break):
         t0 = 1
-        d = 0.4
+        d = 0.2
+        a1 = -0.43
+        b1 = -0.5
         t, nu = ivar
         res = []
         for tval,nuval in zip(t,nu):
             fpk = f0*(tval/t0)**a1
-            nupk = nu0*(tval/t0)**b1
+            fpk = sbpl(amplitude=f0, x_break=t_break, alpha_1=-a1,alpha_2=-a2)(tval)
+            nupk = sbpl(amplitude=nu0, x_break=t_break, alpha_1=-b1, alpha_2=-b2)(tval)
             f = sbpl(amplitude=fpk, x_break=nupk, alpha_1=-c1, alpha_2=-c2, delta=d)
             res.append(f(nuval))
         return np.array(res)
-    initial_guess = [plotdata['flux'].max()*1e-6,25,-1,-1, 2,-1]
-    bounds = [(1e-4,1),(1,100),(-4,-0.1),(-4,-0.1),(0.1,4),(-4,-0.1)]
+    initial_guess = [plotdata['flux'].max()*1e-6,25,1,-1, 2,-1,12]
+    bounds = [(1e-6,1),(1,100),(0.1,4),(-4,-0.1),(0.1,4),(-4,-0.1),(10,100)]
     bounds0 = tuple([b[0] for b in bounds])
     bounds1 = tuple([b[1] for b in bounds])
     bounds = [bounds0,bounds1]
@@ -84,7 +87,7 @@ else:
     xdata = (tdata,nudata)
     ydata = plotdata['flux']*1e-6
     popt, pcov = curve_fit(wrap_bigsbpl, xdata, ydata, p0=initial_guess,bounds=bounds)
-    varnames = ["nu0","alpha1","beta1","gamma1","gamma2"]
+    varnames = ["nu0","alpha2","beta2","gamma1","gamma2","t_break"]
     text = f"f0={popt[0]}+/-{np.absolute(pcov[0][0])**0.5}"
     print(text)
     for ind,var in enumerate(varnames):
@@ -93,6 +96,38 @@ else:
         print(text)
     print("d=0.4")
 bigpopt = popt
+def wrap_latebigsbpl(ivar, f0, nu0, a1, b1, c1, c2):
+    t0=10
+    d = 0.2
+    t, nu = ivar
+    res = []
+    for tval,nuval in zip(t,nu):
+        fpk = f0*(tval/t0)**a1
+        nupk = nu0*(tval/t0)**b1
+        f = sbpl(amplitude=fpk, x_break=nupk, alpha_1=-c1, alpha_2=-c2, delta=d)
+        res.append(f(nuval))
+    return np.array(res)
+latedata = plotdata[(plotdata['obsdate'] > 12)]
+initial_guess = [5e-5,9,1,-1, 2,-2]
+bounds = [(1e-6,1e-4),(1,10),(0.1,4),(-4,-0.1),(0.1,4),(-4,-0.1)]
+bounds0 = tuple([b[0] for b in bounds])
+bounds1 = tuple([b[1] for b in bounds])
+bounds = [bounds0,bounds1]
+tdata = latedata['obsdate']
+nudata = latedata['freq']
+xdata = (tdata,nudata)
+ydata = latedata['flux']*1e-6
+popt, pcov = curve_fit(wrap_latebigsbpl, xdata, ydata, p0=initial_guess,bounds=bounds)
+varnames = ["nu0","alpha1","beta1","gamma1","gamma2"]
+text = f"f0={popt[0]}+/-{np.absolute(pcov[0][0])**0.5}"
+print(text)
+for ind,var in enumerate(varnames):
+    vnum = ind+1
+    text = f" {var}={popt[vnum]}+/-{np.absolute(pcov[vnum][vnum])**0.5}"
+    print(text)
+print("d=0.4")
+# latebigpopt = [8e-5,10,1,-1,2,-2]
+latebigpopt = popt
 for band,ax in zip(bands,axs):
     curdata = plotdata[plotdata['band']==band]
     # print(curdata)
@@ -117,8 +152,11 @@ for band,ax in zip(bands,axs):
     ax.set_ylim(1e-5,3e-3)
     xline = np.linspace(1e-2,365,num=1000)
     nu = np.array([freq for f in xline])
-    yline = wrap_bigsbpl((xline,nu), *popt)
+    yline = wrap_bigsbpl((xline,nu), *bigpopt)
     ax.plot(xline,yline,color='black',alpha=0.5)
+   #  yline = wrap_latebigsbpl((xline,nu), *latebigpopt)
+   #  ax.plot(xline,yline,color='black',ls=':',alpha=0.5,label='late')
+# def wrap_latebigsbpl(ivar, f0, nu0, a1, b1, c1, c2):
     if len(np.unique(curdata['freq'])) >1:
         freq1 = curdata['freq'].min()
         freq2 = curdata['freq'].max()
