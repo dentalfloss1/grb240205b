@@ -63,11 +63,40 @@ if freezeParams:
     print("beta1=-0.5")
     print("d=0.4")
 else:
-    def wrap_bigsbpl(ivar, f0, nu0, a2, b2, c1, c2,t_break):
+    
+    def theory_bigsbpl(ivar, f0, nu0, t0):
         t0 = 1
         d = 0.2
-        a1 = -0.43
+        a1 = -0.4
         b1 = -0.5
+        c1 = 1.7
+        c2 = -1.5
+        t, nu = ivar
+        res = []
+        for tval,nuval in zip(t,nu):
+            fpk = f0*(tval/t0)**a1
+            nupk = nu0*(tval/t0)**b1
+            f = sbpl(amplitude=fpk, x_break=nupk, alpha_1=-c1, alpha_2=-c2, delta=d)
+            res.append(f(nuval))
+        return np.array(res)
+    initial_guess = [plotdata['flux'].max()*1e-6,25,1]
+    bounds = [(1e-6,1),(1,100),(1e-1,100)]
+    bounds0 = tuple([b[0] for b in bounds])
+    bounds1 = tuple([b[1] for b in bounds])
+    bounds = [bounds0,bounds1]
+    tdata = plotdata['obsdate']
+    nudata = plotdata['freq']
+    xdata = (tdata,nudata)
+    ydata = plotdata['flux']*1e-6
+    theorypopt, pcov = curve_fit(theory_bigsbpl, xdata, ydata, p0=initial_guess,bounds=bounds)
+    def wrap_bigsbpl(ivar, f0, nu0, a2, t_break):
+        t0 = 1
+        d = 0.2
+        a1 = -0.4
+        b1 = -0.5
+        b2 = -1.15
+        c1 = 1.7
+        c2 = -1.5
         t, nu = ivar
         res = []
         for tval,nuval in zip(t,nu):
@@ -77,8 +106,8 @@ else:
             f = sbpl(amplitude=fpk, x_break=nupk, alpha_1=-c1, alpha_2=-c2, delta=d)
             res.append(f(nuval))
         return np.array(res)
-    initial_guess = [plotdata['flux'].max()*1e-6,25,1,-1, 2,-1,12]
-    bounds = [(1e-6,1),(1,100),(0.1,4),(-4,-0.1),(0.1,4),(-4,-0.1),(10,100)]
+    initial_guess = [plotdata['flux'].max()*1e-6,25,1, 12]
+    bounds = [(1e-6,1),(1,100),(0.1,4),(10,12)]
     bounds0 = tuple([b[0] for b in bounds])
     bounds1 = tuple([b[1] for b in bounds])
     bounds = [bounds0,bounds1]
@@ -87,14 +116,17 @@ else:
     xdata = (tdata,nudata)
     ydata = plotdata['flux']*1e-6
     popt, pcov = curve_fit(wrap_bigsbpl, xdata, ydata, p0=initial_guess,bounds=bounds)
-    varnames = ["nu0","alpha2","beta2","gamma1","gamma2","t_break"]
+    varnames = ["nu0","alpha2","t_break"]
     text = f"f0={popt[0]}+/-{np.absolute(pcov[0][0])**0.5}"
     print(text)
     for ind,var in enumerate(varnames):
         vnum = ind+1
         text = f" {var}={popt[vnum]}+/-{np.absolute(pcov[vnum][vnum])**0.5}"
         print(text)
-    print("d=0.4")
+    print("d=0.2")
+    print("gamma1=1.7")
+    print("gamma2=-1.5")
+    print("beta2=-1.15")
 bigpopt = popt
 def wrap_latebigsbpl(ivar, f0, nu0, a1, b1, c1, c2):
     t0=10
@@ -135,6 +167,7 @@ for band,ax in zip(bands,axs):
     ydata = curdata['flux']*1e-6
     yerr = np.sqrt(curdata['err']**2 + curdata['rms']**2)*1e-6
     marker = itertools.cycle((',', '+', '.', 'o', '*'))
+    xline = np.linspace(1e-2,365,num=1000)
     for freq in np.unique(curdata['freq']):
        subcurdata = curdata[curdata['freq']==freq]
        subxdata = subcurdata['obsdate']
@@ -142,6 +175,9 @@ for band,ax in zip(bands,axs):
        subyerr = np.sqrt(subcurdata['err']**2 + subcurdata['rms']**2)*1e-6
        ax.errorbar(subxdata,subydata,yerr=subyerr,fmt=' ',color='black')
        ax.scatter(subxdata,subydata,label=f'{freq} GHz',marker=next(marker),color='black')
+       nu = np.array([freq for f in xline])
+       yline = wrap_bigsbpl((xline,nu), *bigpopt)
+       ax.plot(xline,yline,alpha=0.5,label=f'{freq} GHz')
    #      
    #  
    #  popt, pcov = curve_fit(wrap_sbpl, xdata, ydata, p0=initial_guess,bounds=bounds)
@@ -150,10 +186,9 @@ for band,ax in zip(bands,axs):
     ax.set_ylabel("Flux Density (Jy)")
     ax.set_xlim(1e-2,365)
     ax.set_ylim(1e-5,3e-3)
-    xline = np.linspace(1e-2,365,num=1000)
-    nu = np.array([freq for f in xline])
-    yline = wrap_bigsbpl((xline,nu), *bigpopt)
-    ax.plot(xline,yline,color='black',alpha=0.5)
+    yline = theory_bigsbpl((xline,nu), *theorypopt)
+    print(theorypopt)
+#     ax.plot(xline,yline,color='black',alpha=0.5,ls=':')
    #  yline = wrap_latebigsbpl((xline,nu), *latebigpopt)
    #  ax.plot(xline,yline,color='black',ls=':',alpha=0.5,label='late')
 # def wrap_latebigsbpl(ivar, f0, nu0, a1, b1, c1, c2):
