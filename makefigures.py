@@ -71,6 +71,7 @@ else:
     def theory_bigsbpl(ivar, f0, nu0, p,k):
         t0 = 1
         s = 10
+        k=2
         a1 = -k/(2*(4-k))
         b1 = -(3*k)/(5*(4-k))
         b2 = -3/2
@@ -90,7 +91,7 @@ else:
     bounds = [(1e-5,1e-2),(21,100),(2,3),(0,2.5)]
     bounds0 = tuple([b[0] for b in bounds])
     bounds1 = tuple([b[1] for b in bounds])
-    curdata = plotdata
+    curdata = plotdata[plotdata['obsdate'] < 20]
     bounds = [bounds0,bounds1]
     tdata = curdata['obsdate']
     nudata = curdata['freq']
@@ -116,20 +117,21 @@ else:
     print(a1,b1,c1,c2)
     def powerlaw(t,a,k):
         return a*t**k
-    def wrap_bigsbpl(ivar, f0, nu0, a1, b1, b2, c1, c2, c3):
+    def wrap_bigsbpl(ivar, f0, nu0, a1, a2, t_nonrel, b1, c1, c2):
         t0 = 1
         s = 10
+        d = 0.2
         t, nu = ivar
         res = []
         for tval,nuval in zip(t,nu):
-            fpk = f0*(tval/t0)**a1
-            nupk1 = nu0*(tval/t0)**b1
-            nupk2 = nu0*(tval/t0)**b2
-            f =  dsbpl(nuval,fpk,nupk1,c1,c2,nupk2,c3,s)
-            res.append(f)
+            fpk = sbpl(amplitude=f0, x_break=t_nonrel, alpha_1=-a1, alpha_2=-a2, delta=d)(tval)
+            nupk = nu0*(tval/t0)**b1
+            # nupk2 = nu0*(tval/t0)**b2
+            f = sbpl(amplitude=fpk, x_break=nupk, alpha_1=-c1, alpha_2=-c2, delta=d)
+            res.append(f(nuval))
         return np.array(res)
-    initial_guess = [1e-3, 25, -1,-0.5,-0.5, 1, 0.3,-1]
-    bounds = [(1e-6,1),(21,100),(-3,-0.1),(-3,-0.1),(-3,3),(0.1,3),(0.01,0.5),(-4,-0.1)]
+    initial_guess = [1e-3, 25, -1,-1,20,-0.5, 1,-1]
+    bounds = [(1e-6,1),(21,100),(-3,-0.1),(-3,-0.1),(15,25),(-3,-0.1),(0.1,3),(-3,-0.1)]
     bounds0 = tuple([b[0] for b in bounds])
     bounds1 = tuple([b[1] for b in bounds])
     bounds = [bounds0,bounds1]
@@ -140,7 +142,7 @@ else:
     ydata = curdata['flux']*1e-6
     yerr = np.sqrt(curdata['err']**2 + curdata['rms']**2)*1e-6
     popt, pcov = curve_fit(wrap_bigsbpl, xdata, ydata, p0=initial_guess,bounds=bounds,sigma=yerr)
-    varnames = ["nu0","alpha1","beta1","beta2","gamma1","gamma2","gamma3"]
+    varnames = ["nu0","alpha1","alpha2","t_nonrel","beta1","gamma1","gamma2"]
     text = f"f0={popt[0]}+/-{np.absolute(pcov[0][0])**0.5}"
     print(text)
     for ind,var in enumerate(varnames):
