@@ -9,7 +9,8 @@ from scipy.stats import linregress
 import argparse
 trigger = datetime.datetime(2024, 2, 5, 22, 15, 8, 00)
 
-plotdata = pd.read_csv("grbmeas.csv")
+# plotdata = pd.read_csv("grbmeas_30min.csv")
+plotdata = pd.read_csv("grbmeas_45min.csv")
 startdate = [(datetime.datetime.strptime(d, "%Y-%m-%d %H:%M:%S.%f") - trigger).total_seconds()/3600/24 for d in plotdata['start']]
 stopdate = [(datetime.datetime.strptime(d, "%Y-%m-%d %H:%M:%S.%f") - trigger).total_seconds()/3600/24 for d in plotdata['stop']]
 obsdur = [(t2-t1) for t1,t2 in zip(startdate,stopdate)]
@@ -17,7 +18,6 @@ plotdata['obsdate'] = [t1+(dur/2) for t1,dur in zip(startdate,obsdur)]
 plotdata['startdate'] = startdate
 plotdata['stopdate'] = stopdate
 # plotdata = plotdata[np.isin(plotdata['freq'],[5.5,9.0])]
-fig,axs = plt.subplots(6,1,figsize=(7,15),sharex=True,sharey=True)
 parser = argparse.ArgumentParser()
 parser.add_argument("--freezeParams",action="store_true")
 args = parser.parse_args()
@@ -27,11 +27,62 @@ def wrap_sbpl(t,amp, tb, a1, a2, d):
     return f(t)
 def double_sbpl(x,amp,x_break1,a1,n1,a2,n2,x_break2):
     return amp*x_break1
+
+
 def dsbpl(x,amp,xb1,a1,a2,xb2,a3,s):
-    return amp*((x/xb1)**(-a1*s) + (x/xb2)**(-a2*s) + (xb1/xb2)**(-a2*s)*(x/xb2)**(-a3*s))**(-1/s)
+    if (a3 < a1) & (a1 < a2):
+        result =  amp*(((x/xb1)**(a1*s) + (x/xb1)**(a2*s))**(-1) + (xb2/xb1)**(-a2*s)*(x/xb2)**(-a3*s))**(-1/s)
+    elif (a3 < a2) & (a2 < a1):
+        result = amp*((x/xb1)**(-a1*s) + (x/xb1)**(-a2*s) + ((xb1/xb2)**(a2*s))*((x/xb2)**(-a3*s)) )**(-1/s)
+    else:
+        raise Exception("Unhandled powerlaw index ordering")
+    return result
+
+
+
 bands = ["L","S","C","X","Ku","K"]
 tpk = []
 nupk = []
+xbanddata = plotdata[(plotdata['obsdate'] <1)]
+# print(xbanddata)
+tdata = xbanddata['obsdate']
+fdata = xbanddata['flux']
+ferrdata = xbanddata['err']
+# initial_guess = [400,0.031,-2,1,0.1]
+# bounds = [(100,1000),(0.024,0.045),(-4,-1),(0.1,1),(0.09,0.11)]
+# bounds0 = tuple([b[0] for b in bounds])
+# bounds1 = tuple([b[1] for b in bounds])
+# bounds = [bounds0,bounds1]
+# popt, pcov = curve_fit(wrap_sbpl, tdata, fdata, p0=initial_guess,bounds=bounds,sigma=ferrdata)
+fig = plt.figure()
+x = np.geomspace(0.1,1e3,num=100_000)
+y = dsbpl(x,700,1, 2,1/3, 10, -0.5,10)
+y2 = dsbpl(x,700,1, 2,5/2, 10, -0.5,10)
+print("f0=700,tb1=1,tb2=10")
+# y2 = wrap_sbpl(x, 250, 0.035,-1/2, 1/2, 0.1)
+plt.plot(x,y,marker='x',label="dsbpl",color='tab:orange',alpha=0.5)
+plt.plot(x,y2,marker='x',label="sbpl",color='tab:blue',alpha=0.5)
+# plt.errorbar(tdata,fdata,yerr=ferrdata,ls='none',marker='o',color='black')
+# plt.plot(x,wrap_sbpl(x,*popt),color="tab:blue", label='sbpl')
+# varnames = ["t0","gamma1","gamma2","delta"]
+# text = f"f0={popt[0]}+/-{np.absolute(pcov[0][0])**0.5}"
+# print(text)
+# for ind,var in enumerate(varnames):
+#     vnum = ind+1
+#     text = f" {var}={popt[vnum]}+/-{np.absolute(pcov[vnum][vnum])**0.5}"
+#     print(text)
+ax = plt.gca()
+ax.legend()
+ax.axvline(1)
+ax.axhline(700)
+ax.axvline(10,color='red',ls=':')
+ax.axhline(700*(10/1)**(1/3),color='red',ls=':')
+ax.set_xscale('log')
+ax.set_yscale('log')
+plt.show()
+plt.close()
+# exit()
+fig,axs = plt.subplots(6,1,figsize=(7,15),sharex=True,sharey=True)
 if freezeParams:
     def wrap_bigsbpl(ivar, f0, nu0, c1, c2):
         t0 = 1
@@ -68,89 +119,116 @@ if freezeParams:
     print("d=0.4")
 else:
     
-    def theory_bigsbpl(ivar, f0, nu0, p,k):
+    def theory_bigsbpl(ivar, f0, nu0_1, nu0_2, k):
         t0 = 1
+        d=0.4
         s = 10
-        k=2
         a1 = -k/(2*(4-k))
-        b1 = -(3*k)/(5*(4-k))
+        b1 = -3*k/(5*(4-k))
         b2 = -3/2
-        c1 = 2
-        c2 = 1/3
-        c3 = -(p-1)/2
         t, nu = ivar
         res = []
+        t_break = np.amax(t)
+        for tval in np.sort(t):
+            nua = nu0_1*(tval/t0)**b1
+            num = nu0_2*(tval/t0)**b2
+            if num <= nua:
+                t_break = tval
+                break
+
         for tval,nuval in zip(t,nu):
-            fpk = f0*(tval/t0)**a1
-            nupk1 = nu0*(tval/t0)**b1
-            nupk2 = nu0*(tval/t0)**b2
-            f =  dsbpl(nuval,fpk,nupk1,c1,c2,nupk2,c3,s)
-            res.append(f)
+            if tval < t_break:
+                b1 = -3*k/(5*(4-k))
+                c1 = 2
+                c2 = 1/3
+                c3 = -0.6
+                nua = nu0_1*(tval/t0)**b1
+                num = nu0_2*(tval/t0)**b2
+                # fpk = f0*(tval/t0)**a1
+                fnu_m = f0*(tval/t0)**a1
+                fpk = fnu_m*(nua/num)**(1/3)
+            else:
+                p=2.2
+                a1 = -k/(2*(4-k))
+                b1 = -(12*p+8-3*p*k+2*k)/(2*(4-k)*(p+4))
+                c1 = 2
+                c2 = 5/2
+                c3 = -0.6
+                nua = nu0_1*(tval/t0)**b1
+                num = nu0_2*(tval/t0)**b2
+                fnu_m = f0*(tval/t0)**a1
+                # fnu_m = f0*(tval/t0)**a1
+                # fpk = fnu_m*(nua/num)**(1/3)
+                fpk = fnu_m
+            res.append(dsbpl(nuval,fpk,nua,c1,c2,num,c3,s))
         return np.array(res)
-    initial_guess = [4e-4,50,2.2,2]
-    bounds = [(1e-5,1e-2),(21,100),(2,3),(0,2.5)]
+    initial_guess = [4e-4,15,50,1e-1]
+    bounds = [(1e-5,1e-2),(10,100),(20,100),(0,3)]
     bounds0 = tuple([b[0] for b in bounds])
     bounds1 = tuple([b[1] for b in bounds])
-    curdata = plotdata[plotdata['obsdate'] < 20]
+    curdata = plotdata
     bounds = [bounds0,bounds1]
     tdata = curdata['obsdate']
     nudata = curdata['freq']
     xdata = (tdata,nudata)
     ydata = curdata['flux']*1e-6
     yerr = np.sqrt(curdata['err']**2 + curdata['rms']**2)*1e-6
-    theorypopt, pcov = curve_fit(theory_bigsbpl, xdata, ydata, p0=initial_guess,bounds=bounds,sigma=yerr)
-    popt = theorypopt
-    varnames = ["nu0","p","k"]
-    text = f"f0={popt[0]}+/-{np.absolute(pcov[0][0])**0.5}"
-    print(text)
-    for ind,var in enumerate(varnames):
-        vnum = ind+1
-        text = f" {var}={popt[vnum]}+/-{np.absolute(pcov[vnum][vnum])**0.5}"
-        print(text)
-    print("d=0.4")
-    k = 2
-    p = 2
-    a1 = -k/(2*(4-k))
-    b1 = -(12*p+8-3*p*k+2*k)/(2*(4-k)*(p+4))
-    c1 = (20-3*k)/(4*(4-k))
-    c2 = -(12*p-12-3*p*k+5*k)/(4*(4-k))
-    print(a1,b1,c1,c2)
+   #  theorypopt, pcov = curve_fit(theory_bigsbpl, xdata, ydata, p0=initial_guess,bounds=bounds,sigma=yerr)
+   #  popt = theorypopt
+   #  varnames = ["nu0_1","nu_02","k"]
+   #  text = f"f0={popt[0]}+/-{np.absolute(pcov[0][0])**0.5}"
+   #  print(text)
+   #  for ind,var in enumerate(varnames):
+   #      vnum = ind+1
+   #      text = f" {var}={popt[vnum]}+/-{np.absolute(pcov[vnum][vnum])**0.5}"
+   #      print(text)
+   #  print("d=0.4")
+#     k = 2
+#     p = 2
+#     a1 = -k/(2*(4-k))
+#     b1 = -(12*p+8-3*p*k+2*k)/(2*(4-k)*(p+4))
+#     c1 = (20-3*k)/(4*(4-k))
+#     c2 = -(12*p-12-3*p*k+5*k)/(4*(4-k))
+#     print(a1,b1,c1,c2)
+#     theorypopt = [0.000920, 10,20,0]
     def powerlaw(t,a,k):
         return a*t**k
-    def wrap_bigsbpl(ivar, f0, nu0, a1, a2, t_nonrel, b1, c1, c2):
+    def wrap_bigsbpl(ivar, f0, nu0, a1, a2, b1, c1, c2, t_nonrel):
         t0 = 1
         s = 10
         d = 0.2
+       #  c1 = 2.5
+       #  c2 = -0.6
         t, nu = ivar
         res = []
         for tval,nuval in zip(t,nu):
-            fpk = sbpl(amplitude=f0, x_break=t_nonrel, alpha_1=-a1, alpha_2=-a2, delta=d)(tval)
+            fpk =  sbpl(amplitude=f0, x_break=t_nonrel, alpha_1=-a1, alpha_2=-a2, delta=d)(tval)
             nupk = nu0*(tval/t0)**b1
-            # nupk2 = nu0*(tval/t0)**b2
+         #    nupk2 = nu0*(tval/t0)**b2
             f = sbpl(amplitude=fpk, x_break=nupk, alpha_1=-c1, alpha_2=-c2, delta=d)
             res.append(f(nuval))
         return np.array(res)
-    initial_guess = [1e-3, 25, -1,-1,20,-0.5, 1,-1]
-    bounds = [(1e-6,1),(21,100),(-3,-0.1),(-3,-0.1),(15,25),(-3,-0.1),(0.1,3),(-3,-0.1)]
+    initial_guess = [1e-3, 25, -1,-1, -0.5, 2.5,-0.6, 22]
+    bounds = [(1e-6,1),(21,100),(-3,-0.1),(-3,-0.1),(-3,-0.1),(0.1,3),(-3,-0.1),(15,25)]
     bounds0 = tuple([b[0] for b in bounds])
     bounds1 = tuple([b[1] for b in bounds])
     bounds = [bounds0,bounds1]
-    curdata = plotdata
+    curdata = plotdata[plotdata['obsdate'] > 0.3]
     tdata = curdata['obsdate']
     nudata = curdata['freq']
     xdata = (tdata,nudata)
     ydata = curdata['flux']*1e-6
     yerr = np.sqrt(curdata['err']**2 + curdata['rms']**2)*1e-6
-    popt, pcov = curve_fit(wrap_bigsbpl, xdata, ydata, p0=initial_guess,bounds=bounds,sigma=yerr)
-    varnames = ["nu0","alpha1","alpha2","t_nonrel","beta1","gamma1","gamma2"]
-    text = f"f0={popt[0]}+/-{np.absolute(pcov[0][0])**0.5}"
-    print(text)
-    for ind,var in enumerate(varnames):
-        vnum = ind+1
-        text = f" {var}={popt[vnum]}+/-{np.absolute(pcov[vnum][vnum])**0.5}"
-        print(text)
-    print("d=0.2")
-bigpopt = popt
+#     popt, pcov = curve_fit(wrap_bigsbpl, xdata, ydata, p0=initial_guess,bounds=bounds,sigma=yerr)
+#     varnames = ["nu0","alpha1","alpha2","beta1","gamma1","gamma2","t_nonrel"]
+#     text = f"f0={popt[0]}+/-{np.absolute(pcov[0][0])**0.5}"
+#     print(text)
+#     for ind,var in enumerate(varnames):
+#         vnum = ind+1
+#         text = f" {var}={popt[vnum]}+/-{np.absolute(pcov[vnum][vnum])**0.5}"
+#         print(text)
+#     print("d=0.2")
+# bigpopt = popt
 def wrap_latebigsbpl(ivar, f0, nu0, a1, b1, c1, c2):
     d = 0.2
     t0 = 20.0
@@ -174,17 +252,95 @@ tdata = latedata['obsdate']
 nudata = latedata['freq']
 xdata = (tdata,nudata)
 ydata = latedata['flux']*1e-6
-popt, pcov = curve_fit(wrap_latebigsbpl, xdata, ydata, p0=initial_guess,bounds=bounds)
-varnames = ["nu0","a1","b1","c1","c2"]
-text = f"f0={popt[0]}+/-{np.absolute(pcov[0][0])**0.5}"
-print(text)
-for ind,var in enumerate(varnames):
-    vnum = ind+1
-    text = f" {var}={popt[vnum]}+/-{np.absolute(pcov[vnum][vnum])**0.5}"
-    print(text)
-print("d=0.2")
-# latebigpopt = [8e-5,10,1,-1,2,-2]
-latebigpopt = popt
+yerr = latedata['err']*1e-6
+# popt, pcov = curve_fit(wrap_latebigsbpl, xdata, ydata, p0=initial_guess,bounds=bounds,sigma=yerr)
+# varnames = ["nu0","a1","b1","c1","c2"]
+# text = f"f0={popt[0]}+/-{np.absolute(pcov[0][0])**0.5}"
+# print(text)
+# for ind,var in enumerate(varnames):
+#     vnum = ind+1
+#     text = f" {var}={popt[vnum]}+/-{np.absolute(pcov[vnum][vnum])**0.5}"
+#     print(text)
+# print("d=0.2")
+# # latebigpopt = [8e-5,10,1,-1,2,-2]
+# latebigpopt = popt
+def wrap_relbigsbpl(ivar, f0,nu0, a1,b1,c1,c2):
+    d = 0.2
+    t0 = 1
+    t, nu = ivar
+    res = []
+    for tval,nuval in zip(t,nu):
+        fpk = f0*(tval/t0)**a1
+        nupk = nu0*(tval/t0)**b1
+        f = sbpl(amplitude=fpk, x_break=nupk, alpha_1=-c1, alpha_2=-c2, delta=d)
+        res.append(f(nuval))
+    return np.array(res)
+curdata = plotdata[(plotdata['obsdate'] < 22)]
+initial_guess = [5e-4,30,-0.25 ,-0.3, 1,-1]
+bounds = [(1e-6,1e-2),(21,100),(-2,0),(-2,0),(0,2),(-3,0)]
+bounds0 = tuple([b[0] for b in bounds])
+bounds1 = tuple([b[1] for b in bounds])
+bounds = [bounds0,bounds1]
+tdata = curdata['obsdate']
+nudata = curdata['freq']
+xdata = (tdata,nudata)
+ydata = curdata['flux']*1e-6
+yerr = curdata['err']*1e-6
+# popt, pcov = curve_fit(wrap_relbigsbpl, xdata, ydata, p0=initial_guess,bounds=bounds,sigma=yerr)
+# varnames = ["nu0","a1","b1","c1","c2"]
+# text = f"f0={popt[0]}+/-{np.absolute(pcov[0][0])**0.5}"
+# print(text)
+# for ind,var in enumerate(varnames):
+#     vnum = ind+1
+#     text = f" {var}={popt[vnum]}+/-{np.absolute(pcov[vnum][vnum])**0.5}"
+#     print(text)
+# print("d=0.2")
+# # latebigpopt = [8e-5,10,1,-1,2,-2]
+# relbigpopt = popt
+
+
+# def theory_bigsbpl(ivar, f0, nu0_1, nu0_2, k):
+#     t0 = 1
+#     d=0.4
+#     s = 10
+#     a1 = -k/(2*(4-k))
+#     b1 = -3*k/(5*(4-k))
+#     b2 = -3/2
+#     t, nu = ivar
+#     res = []
+#     t_break = np.amax(t)
+#     for tval in np.sort(t):
+#         nua = nu0_1*(tval/t0)**b1
+#         num = nu0_2*(tval/t0)**b2
+#         if num <= nua:
+#             t_break = tval
+#             break
+# 
+#     for tval,nuval in zip(t,nu):
+#         if tval > t_break:
+#             b1 = -3*k/(5*(4-k))
+#             nua = nu0_1*(tval/t0)**b1
+#             num = nu0_2*(tval/t0)**b2
+#             c1 = 2
+#             c2 = 1/3
+#             c3 = -0.6
+#             fnu_m = f0*(tval/t0)**a1
+#             fpk = fnu_m*(nua/num)**(1/3)
+#         else:
+#             p=2.2
+#             a1 = -k/(2*(4-k))
+#             b1 = -(12*p+8-3*p*k+2*k)/(2*(4-k)*(p+4))
+#             nua = nu0_1*(tval/t0)**b1
+#             num = nu0_2*(tval/t0)**b2
+#             c1 = 2
+#             c2 = 5/2
+#             c3 = -0.6
+#             fnu_m = f0*(tval/t0)**a1
+#             fpk = fnu_m
+#         res.append(dsbpl(nuval,fpk,nua,c1,c2,num,c3,s))
+#     return np.array(res)
+
+
 for band,ax in zip(bands,axs):
     curdata = plotdata[plotdata['band']==band]
     # print(curdata)
@@ -192,17 +348,34 @@ for band,ax in zip(bands,axs):
     ydata = curdata['flux']*1e-6
     yerr = np.sqrt(curdata['err']**2 + curdata['rms']**2)*1e-6
     marker = itertools.cycle((',', '+', '.', 'o', '*'))
-    xline = np.linspace(1e-2,365,num=1000)
-    for freq in np.unique(curdata['freq']):
-       subcurdata = curdata[curdata['freq']==freq]
-       subxdata = subcurdata['obsdate']
-       subydata = subcurdata['flux']*1e-6
-       subyerr = np.sqrt(subcurdata['err']**2 + subcurdata['rms']**2)*1e-6
-       ax.errorbar(subxdata,subydata,yerr=subyerr,fmt=' ',color='black')
-       ax.scatter(subxdata,subydata,label=f'{freq} GHz',marker=next(marker),color='black')
+    xline = np.geomspace(1e-2,365,num=1000)
+    for freq in np.sort(np.unique(curdata['freq']))[::-1]:
+       if (band=="X"):
+           subcurdata = curdata[(curdata['freq']==freq) & (curdata['obsdate'] < 2.1)]
+           subxdata = subcurdata['obsdate']
+           subydata = subcurdata['flux']*1e-6
+           subyerr = np.sqrt(subcurdata['err']**2 + subcurdata['rms']**2)*1e-6
+           ax.errorbar(subxdata,subydata,yerr=subyerr,fmt=' ',color='black')
+           ax.scatter(subxdata,subydata,label=f'{freq} GHz uvfit fixed position',facecolors='none',edgecolor='black')
+           subcurdata = curdata[(curdata['freq']==freq) & (curdata['obsdate'] >= 2.1)]
+           subxdata = subcurdata['obsdate']
+           subydata = subcurdata['flux']*1e-6
+           subyerr = np.sqrt(subcurdata['err']**2 + subcurdata['rms']**2)*1e-6
+           ax.errorbar(subxdata,subydata,yerr=subyerr,fmt=' ',color='black')
+           ax.scatter(subxdata,subydata,label=f'{freq} GHz',color='black')
+       else:
+           subcurdata = curdata[curdata['freq']==freq]
+           subxdata = subcurdata['obsdate']
+           subydata = subcurdata['flux']*1e-6
+           subyerr = np.sqrt(subcurdata['err']**2 + subcurdata['rms']**2)*1e-6
+           ax.errorbar(subxdata,subydata,yerr=subyerr,fmt=' ',color='black')
+           ax.scatter(subxdata,subydata,label=f'{freq} GHz',marker=next(marker),color='black')
+        
     nu = np.array([freq for f in xline])
-    yline = wrap_bigsbpl((xline,nu), *bigpopt)
-    ax.plot(xline,yline,alpha=0.5,color='black',label='main')
+    # yline = wrap_relbigsbpl((xline,nu), *relbigpopt)
+  #   ax.plot(xline,yline,alpha=0.5,color='black',label="rel",ls=":")
+    # yline = wrap_bigsbpl((xline,nu), *bigpopt)
+ #    ax.plot(xline,yline,alpha=0.5,color='black',label='rel+nonrel')
    #      
    #  
    #  popt, pcov = curve_fit(wrap_sbpl, xdata, ydata, p0=initial_guess,bounds=bounds)
@@ -211,10 +384,11 @@ for band,ax in zip(bands,axs):
     ax.set_ylabel("Flux Density (Jy)")
     ax.set_xlim(1e-2,365)
     ax.set_ylim(1e-5,3e-3)
-    yline = theory_bigsbpl((xline,nu), *theorypopt)
+    test_theory = [1.e-3, 10 , 10**(5/2) , 0]
+    yline = theory_bigsbpl((xline,nu), *test_theory)
     ax.plot(xline,yline,color='black',alpha=0.5,ls=':',label='theory')
-    yline = wrap_latebigsbpl((xline,nu), *latebigpopt)
-    ax.plot(xline,yline,color='black',ls='--',alpha=0.5,label='late')
+    # yline = wrap_latebigsbpl((xline,nu), *latebigpopt)
+#     ax.plot(xline,yline,color='black',ls='--',alpha=0.5,label='nonrel')
 # def wrap_latebigsbpl(ivar, f0, nu0, a1, b1, c1, c2):
     if len(np.unique(curdata['freq'])) >1:
         freq1 = curdata['freq'].min()
@@ -225,15 +399,15 @@ for band,ax in zip(bands,axs):
         title=f'{freq} GHz'
         ax.set_title(title)
     ax.legend()
-    if (freq < 16) and (freq >2):
-        tpk.append(popt[1])
-        nupk.append(np.average(curdata['freq']))
+   #  if (freq < 16) and (freq >2):
+   #      tpk.append(popt[1])
+   #      nupk.append(np.average(curdata['freq']))
     for o in np.sort(np.unique(curdata['obs'])):
    
         subdata = curdata[curdata['obs']==o]
         startobs = subdata['startdate'].min()
         endobs = subdata['stopdate'].max()
-        ax.axvspan(startobs,endobs, alpha=0.15, color='gray')
+        # ax.axvspan(startobs,endobs, alpha=0.15, color='gray')
 # plt.legend()
 ax.set_xlabel("Days post-trigger")
 plt.tight_layout()
@@ -288,7 +462,7 @@ title=f'nu_pk  alpha:{popt[1]}'
 ax.set_title(title)
 plt.savefig("nu_pk_time.png")
 plt.close()
-
+exit()
 popt = bigpopt
 chisq = 0
 dof = len(plotdata) - len(popt)
@@ -318,7 +492,7 @@ def wrap_sbpl(t,amp, tb, a1, a2, d):
     f = sbpl(amplitude=amp, x_break=tb, alpha_1=a1, alpha_2=a2, delta=d)
     return f(t)
 
-plotdata = pd.read_csv("spectra.csv")
+plotdata = pd.read_csv("spectra_uvfit.csv")
 numplots = plotdata['obs'].max()
 nrows = int(np.sqrt(numplots))
 ncols = int(np.ceil(np.sqrt(numplots)))
