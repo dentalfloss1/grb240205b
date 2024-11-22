@@ -38,6 +38,13 @@ def dsbpl(x,amp,xb1,a1,a2,xb2,a3,s):
         raise Exception("Unhandled powerlaw index ordering")
     return result
 
+def verify_powerlaw(x,amp,xb1,a1,a2,xb2,a3):
+    result = x
+    amp2= amp*(xb2/xb1)**(a2)
+    result = np.where( x <= xb1, amp*(x/xb1)**(a1),result)
+    result = np.where( (x >  xb1)  & (x <xb2), amp2*(x/xb2)**(a2),result)
+    result = np.where( x>=xb2, amp2*(x/xb2)**(a3),result)
+    return result
 
 
 bands = ["L","S","C","X","Ku","K"]
@@ -56,8 +63,8 @@ ferrdata = xbanddata['err']
 # popt, pcov = curve_fit(wrap_sbpl, tdata, fdata, p0=initial_guess,bounds=bounds,sigma=ferrdata)
 fig = plt.figure()
 x = np.geomspace(0.1,1e3,num=100_000)
-y = dsbpl(x,700,1, 2,1/3, 10, -0.5,10)
-y2 = dsbpl(x,700,1, 2,5/2, 10, -0.5,10)
+y = dsbpl(x,700,1, 2,1/3, 100, -0.5,10)
+y2 = dsbpl(7,700,1, 2,1/3, 100, -0.5,10)*dsbpl(x,700,1, 2,5/2, 100, -0.5,10)/dsbpl(7,700,1, 2,5/2, 100, -0.5,10)
 print("f0=700,tb1=1,tb2=10")
 # y2 = wrap_sbpl(x, 250, 0.035,-1/2, 1/2, 0.1)
 plt.plot(x,y,marker='x',label="dsbpl",color='tab:orange',alpha=0.5)
@@ -73,13 +80,13 @@ plt.plot(x,y2,marker='x',label="sbpl",color='tab:blue',alpha=0.5)
 #     print(text)
 ax = plt.gca()
 ax.legend()
-ax.axvline(1)
-ax.axhline(700)
-ax.axvline(10,color='red',ls=':')
-ax.axhline(700*(10/1)**(1/3),color='red',ls=':')
+# ax.axvline(1)
+# ax.axhline(700)
+# ax.axvline(10,color='red',ls=':')
+# ax.axhline(700*(10/1)**(5/2),color='red',ls=':')
 ax.set_xscale('log')
 ax.set_yscale('log')
-plt.show()
+# plt.show()
 plt.close()
 # exit()
 fig,axs = plt.subplots(6,1,figsize=(7,15),sharex=True,sharey=True)
@@ -119,6 +126,23 @@ if freezeParams:
     print("d=0.4")
 else:
     
+    def get_tbreak(ivar, f0, nu0_1, nu0_2, k):
+        t0 = 1
+        d=0.4
+        s = 10
+        a1 = -k/(2*(4-k))
+        b1 = -3*k/(5*(4-k))
+        b2 = -3/2
+        t, nu = ivar
+        res = []
+        t_break = np.amax(t)
+        for tval in np.sort(t):
+            nua = nu0_1*(tval/t0)**b1
+            num = nu0_2*(tval/t0)**b2
+            if num <= nua:
+                t_break = tval
+                break
+        return t_break
     def theory_bigsbpl(ivar, f0, nu0_1, nu0_2, k):
         t0 = 1
         d=0.4
@@ -137,36 +161,41 @@ else:
                 break
 
         for tval,nuval in zip(t,nu):
+            b1_1 = -3*k/(5*(4-k))
+            c1_1 = 2
+            c2_1 = 1/3
+            c3_1 = -0.6
+            nua_1 = nu0_1*(tval/t0)**b1_1
+            num_1 = nu0_2*(tval/t0)**b2
+            # fpk = f0*(tval/t0)**a1
+            fpk_1 = f0*(tval/t0)**a1
+            # fpk = fnu_m*(nua/num)**(1/3)
+            p=2.2
+            a1_2 = -k/(2*(4-k))
+            b1_2 = -(12*p+8-3*p*k+2*k)/(2*(4-k)*(p+4))
+            c1_2 = 2
+            c2_2 = 5/2
+            c3_2 = -0.6
+            nua_2 = nu0_1*(tval/t0)**b1_2
+            num_2 = nu0_2*(tval/t0)**b2
+            fnu_m_2 = f0*(tval/t0)**a1_2
+            # fnu_m = f0*(tval/t0)**a1
+            # fpk = fnu_m*(nua/num)**(1/3)
+            fpk_2 = fnu_m_2
             if tval < t_break:
-                b1 = -3*k/(5*(4-k))
-                c1 = 2
-                c2 = 1/3
-                c3 = -0.6
-                nua = nu0_1*(tval/t0)**b1
-                num = nu0_2*(tval/t0)**b2
-                # fpk = f0*(tval/t0)**a1
-                fnu_m = f0*(tval/t0)**a1
-                fpk = fnu_m*(nua/num)**(1/3)
+                result = dsbpl(nuval,fpk_1,nua_1,c1_1,c2_1,num_1,c3_1,s)
             else:
-                p=2.2
-                a1 = -k/(2*(4-k))
-                b1 = -(12*p+8-3*p*k+2*k)/(2*(4-k)*(p+4))
-                c1 = 2
-                c2 = 5/2
-                c3 = -0.6
-                nua = nu0_1*(tval/t0)**b1
-                num = nu0_2*(tval/t0)**b2
-                fnu_m = f0*(tval/t0)**a1
-                # fnu_m = f0*(tval/t0)**a1
-                # fpk = fnu_m*(nua/num)**(1/3)
-                fpk = fnu_m
-            res.append(dsbpl(nuval,fpk,nua,c1,c2,num,c3,s))
+                break1val = dsbpl(nuval,f0*(t_break/t0)**a1,nu0_1*(t_break/t0)**b1_1,c1_1,c2_1,nu0_2*(t_break/t0)**b2,c3_1,s)
+                break2val = dsbpl(nuval,f0*(t_break/t0)**a1_2,nu0_1*(t_break/t0)**b1_2,c1_2,c2_2,nu0_2*(t_break/t0)**b2,c3_2,s)
+                result = break1val*dsbpl(nuval,fpk_2,nua_2,c1_2,c2_2,num_2,c3_2,s)/break2val
+
+            res.append(result)
         return np.array(res)
-    initial_guess = [4e-4,15,50,1e-1]
-    bounds = [(1e-5,1e-2),(10,100),(20,100),(0,3)]
+    initial_guess = [4e-4,15,50,2]
+    bounds = [(1e-6,1),(1,100),(1,300),(0,3)]
     bounds0 = tuple([b[0] for b in bounds])
     bounds1 = tuple([b[1] for b in bounds])
-    curdata = plotdata
+    curdata = plotdata[(plotdata['obsdate'] > 1) ]
     bounds = [bounds0,bounds1]
     tdata = curdata['obsdate']
     nudata = curdata['freq']
@@ -384,9 +413,22 @@ for band,ax in zip(bands,axs):
     ax.set_ylabel("Flux Density (Jy)")
     ax.set_xlim(1e-2,365)
     ax.set_ylim(1e-5,3e-3)
-    test_theory = [1.e-3, 10 , 10**(5/2) , 0]
+    test_theory = [1.e-3, 9 , 50 , 2]
+    t_break = get_tbreak((xline,nu),*test_theory)
+    print(test_theory)
+    ax.axvline(t_break,ls='-')
     yline = theory_bigsbpl((xline,nu), *test_theory)
-    ax.plot(xline,yline,color='black',alpha=0.5,ls=':',label='theory')
+    ax.plot(xline,yline,color='black',alpha=0.5,ls=':')
+    yline = verify_powerlaw(xline,1e-3,1,0.72,-0.333,3,-1.5)
+    ax.plot(xline,yline,color='black',alpha=0.5,ls='-')
+
+
+#     test_theory = [1.e-3, 9 , 50 , 0]
+#     print(test_theory)
+#     t_break = get_tbreak((xline,nu),*test_theory)
+#     ax.axvline(t_break,ls=':')
+#     yline = theory_bigsbpl((xline,nu), *test_theory)
+#     ax.plot(xline,yline,color='black',alpha=0.5,ls=':',label='ISM')
     # yline = wrap_latebigsbpl((xline,nu), *latebigpopt)
 #     ax.plot(xline,yline,color='black',ls='--',alpha=0.5,label='nonrel')
 # def wrap_latebigsbpl(ivar, f0, nu0, a1, b1, c1, c2):
