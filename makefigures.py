@@ -62,13 +62,15 @@ ferrdata = xbanddata['err']
 # bounds = [bounds0,bounds1]
 # popt, pcov = curve_fit(wrap_sbpl, tdata, fdata, p0=initial_guess,bounds=bounds,sigma=ferrdata)
 fig = plt.figure()
-x = np.geomspace(0.1,1e3,num=100_000)
-y = dsbpl(x,700,1, 2,1/3, 100, -0.5,10)
-y2 = dsbpl(7,700,1, 2,1/3, 100, -0.5,10)*dsbpl(x,700,1, 2,5/2, 100, -0.5,10)/dsbpl(7,700,1, 2,5/2, 100, -0.5,10)
+# y = dsbpl(x,700,1, 2,1/3, 100, -0.5,10)
+# y2 = dsbpl(7,700,1, 2,1/3, 100, -0.5,10)*dsbpl(x,700,1, 2,5/2, 100, -0.5,10)/dsbpl(7,700,1, 2,5/2, 100, -0.5,10)
 print("f0=700,tb1=1,tb2=10")
-# y2 = wrap_sbpl(x, 250, 0.035,-1/2, 1/2, 0.1)
-plt.plot(x,y,marker='x',label="dsbpl",color='tab:orange',alpha=0.5)
-plt.plot(x,y2,marker='x',label="sbpl",color='tab:blue',alpha=0.5)
+x = tdata
+y = fdata
+x2 = np.geomspace(x.min(),x.max(),num=100_000)
+y2 = wrap_sbpl(x2, 250, 0.035,-1/2, 1/2, 0.1)
+plt.scatter(x,y,marker='x',label="dsbpl",color='tab:orange',alpha=0.5)
+plt.plot(x2,y2,marker='x',label="sbpl",color='tab:blue',alpha=0.5)
 # plt.errorbar(tdata,fdata,yerr=ferrdata,ls='none',marker='o',color='black')
 # plt.plot(x,wrap_sbpl(x,*popt),color="tab:blue", label='sbpl')
 # varnames = ["t0","gamma1","gamma2","delta"]
@@ -89,7 +91,6 @@ ax.set_yscale('log')
 # plt.show()
 plt.close()
 # exit()
-fig,axs = plt.subplots(6,1,figsize=(7,15),sharex=True,sharey=True)
 if freezeParams:
     def wrap_bigsbpl(ivar, f0, nu0, c1, c2):
         t0 = 1
@@ -242,22 +243,22 @@ else:
     bounds0 = tuple([b[0] for b in bounds])
     bounds1 = tuple([b[1] for b in bounds])
     bounds = [bounds0,bounds1]
-    curdata = plotdata[plotdata['obsdate'] > 0.3]
+    curdata = plotdata[plotdata['obsdate'] > 1]
     tdata = curdata['obsdate']
     nudata = curdata['freq']
     xdata = (tdata,nudata)
     ydata = curdata['flux']*1e-6
     yerr = np.sqrt(curdata['err']**2 + curdata['rms']**2)*1e-6
-#     popt, pcov = curve_fit(wrap_bigsbpl, xdata, ydata, p0=initial_guess,bounds=bounds,sigma=yerr)
-#     varnames = ["nu0","alpha1","alpha2","beta1","gamma1","gamma2","t_nonrel"]
-#     text = f"f0={popt[0]}+/-{np.absolute(pcov[0][0])**0.5}"
-#     print(text)
-#     for ind,var in enumerate(varnames):
-#         vnum = ind+1
-#         text = f" {var}={popt[vnum]}+/-{np.absolute(pcov[vnum][vnum])**0.5}"
-#         print(text)
-#     print("d=0.2")
-# bigpopt = popt
+    popt, pcov = curve_fit(wrap_bigsbpl, xdata, ydata, p0=initial_guess,bounds=bounds,sigma=yerr)
+    varnames = ["nu0","alpha1","alpha2","beta1","gamma1","gamma2","t_nonrel"]
+    text = f"f0={popt[0]}+/-{np.absolute(pcov[0][0])**0.5}"
+    print(text)
+    for ind,var in enumerate(varnames):
+        vnum = ind+1
+        text = f" {var}={popt[vnum]}+/-{np.absolute(pcov[vnum][vnum])**0.5}"
+        print(text)
+    print("d=0.2")
+bigpopt = popt
 def wrap_latebigsbpl(ivar, f0, nu0, a1, b1, c1, c2):
     d = 0.2
     t0 = 20.0
@@ -293,6 +294,35 @@ yerr = latedata['err']*1e-6
 # print("d=0.2")
 # # latebigpopt = [8e-5,10,1,-1,2,-2]
 # latebigpopt = popt
+def wrap_earlybigsbpl(t, f0, t0):
+    c1 = 0.5
+    c2 = -0.5
+    res = []
+    return wrap_sbpl(t, f0, t0,-1/2, 1/2, 0.1)
+earlydata = plotdata[(plotdata['obsdate'] < 1) & (plotdata['freq'] > 8)]
+print(earlydata)
+initial_guess = [250e-6,0.035]
+bounds = [(1e-4,5e-4),(0.025,0.05)]
+bounds0 = tuple([b[0] for b in bounds])
+bounds1 = tuple([b[1] for b in bounds])
+bounds = [bounds0,bounds1]
+tdata = earlydata['obsdate']
+nudata = earlydata['freq']
+xdata = tdata
+ydata = earlydata['flux']*1e-6
+yerr = earlydata['err']*1e-6
+wrap_sbpl(x2, 250, 0.035,-1/2, 1/2, 0.1)
+popt, pcov = curve_fit(wrap_earlybigsbpl, xdata, ydata, p0=initial_guess,bounds=bounds,sigma=yerr)
+varnames = ["t0"]
+text = f"f0={popt[0]}+/-{np.absolute(pcov[0][0])**0.5}"
+print(text)
+for ind,var in enumerate(varnames):
+    vnum = ind+1
+    text = f" {var}={popt[vnum]}+/-{np.absolute(pcov[vnum][vnum])**0.5}"
+    print(text)
+print("d=0.2")
+# earlybigpopt = [8e-5,10,1,-1,2,-2]
+earlybigpopt = popt
 def wrap_relbigsbpl(ivar, f0,nu0, a1,b1,c1,c2):
     d = 0.2
     t0 = 1
@@ -369,6 +399,7 @@ yerr = curdata['err']*1e-6
 #         res.append(dsbpl(nuval,fpk,nua,c1,c2,num,c3,s))
 #     return np.array(res)
 
+fig,axs = plt.subplots(6,1,figsize=(10,25),sharex=True,sharey=True)
 
 for band,ax in zip(bands,axs):
     curdata = plotdata[plotdata['band']==band]
@@ -403,8 +434,8 @@ for band,ax in zip(bands,axs):
     nu = np.array([freq for f in xline])
     # yline = wrap_relbigsbpl((xline,nu), *relbigpopt)
   #   ax.plot(xline,yline,alpha=0.5,color='black',label="rel",ls=":")
-    # yline = wrap_bigsbpl((xline,nu), *bigpopt)
- #    ax.plot(xline,yline,alpha=0.5,color='black',label='rel+nonrel')
+    yline = wrap_bigsbpl((xline,nu), *bigpopt)
+    ax.plot(xline,yline,alpha=0.5,color='black',label='rel+nonrel')
    #      
    #  
    #  popt, pcov = curve_fit(wrap_sbpl, xdata, ydata, p0=initial_guess,bounds=bounds)
@@ -416,11 +447,11 @@ for band,ax in zip(bands,axs):
     test_theory = [1.e-3, 9 , 50 , 2]
     t_break = get_tbreak((xline,nu),*test_theory)
     print(test_theory)
-    ax.axvline(t_break,ls='-')
-    yline = theory_bigsbpl((xline,nu), *test_theory)
-    ax.plot(xline,yline,color='black',alpha=0.5,ls=':')
-    yline = verify_powerlaw(xline,1e-3,1,0.72,-0.333,3,-1.5)
-    ax.plot(xline,yline,color='black',alpha=0.5,ls='-')
+    # ax.axvline(t_break,ls='-')
+    # yline = theory_bigsbpl((xline,nu), *test_theory)
+    # ax.plot(xline,yline,color='black',alpha=0.5,ls=':')
+    # yline = verify_powerlaw(xline,1e-3,1,0.72,-0.333,3,-1.5)
+    # ax.plot(xline,yline,color='black',alpha=0.5,ls='-')
 
 
 #     test_theory = [1.e-3, 9 , 50 , 0]
@@ -431,6 +462,9 @@ for band,ax in zip(bands,axs):
 #     ax.plot(xline,yline,color='black',alpha=0.5,ls=':',label='ISM')
     # yline = wrap_latebigsbpl((xline,nu), *latebigpopt)
 #     ax.plot(xline,yline,color='black',ls='--',alpha=0.5,label='nonrel')
+    if freq==9.0:
+        yline = wrap_earlybigsbpl(xline, *earlybigpopt)
+        ax.plot(xline,yline,color='black',ls='--',alpha=0.5,label='Reverse Shock')
 # def wrap_latebigsbpl(ivar, f0, nu0, a1, b1, c1, c2):
     if len(np.unique(curdata['freq'])) >1:
         freq1 = curdata['freq'].min()
@@ -504,7 +538,6 @@ title=f'nu_pk  alpha:{popt[1]}'
 ax.set_title(title)
 plt.savefig("nu_pk_time.png")
 plt.close()
-exit()
 popt = bigpopt
 chisq = 0
 dof = len(plotdata) - len(popt)
