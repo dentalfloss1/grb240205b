@@ -227,8 +227,6 @@ else:
         t0 = 1
         s = 10
         d = 0.2
-       #  c1 = 2.5
-       #  c2 = -0.6
         t, nu = ivar
         res = []
         for tval,nuval in zip(t,nu):
