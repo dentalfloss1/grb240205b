@@ -160,7 +160,6 @@ else:
             if num <= nua:
                 t_break = tval
                 break
-
         for tval,nuval in zip(t,nu):
             b1_1 = -3*k/(5*(4-k))
             c1_1 = 2
@@ -168,9 +167,9 @@ else:
             c3_1 = -0.6
             nua_1 = nu0_1*(tval/t0)**b1_1
             num_1 = nu0_2*(tval/t0)**b2
-            # fpk = f0*(tval/t0)**a1
-            fpk_1 = f0*(tval/t0)**a1
-            # fpk = fnu_m*(nua/num)**(1/3)
+            fnu_m1 = f0*(tval/t0)**a1
+            # fpk_1 = f0*(tval/t0)**a1
+            fpk_1 = fnu_m1*(nua_1/num_1)**(1/3)
             p=2.2
             a1_2 = -k/(2*(4-k))
             b1_2 = -(12*p+8-3*p*k+2*k)/(2*(4-k)*(p+4))
@@ -203,16 +202,16 @@ else:
     xdata = (tdata,nudata)
     ydata = curdata['flux']*1e-6
     yerr = np.sqrt(curdata['err']**2 + curdata['rms']**2)*1e-6
-   #  theorypopt, pcov = curve_fit(theory_bigsbpl, xdata, ydata, p0=initial_guess,bounds=bounds,sigma=yerr)
-   #  popt = theorypopt
-   #  varnames = ["nu0_1","nu_02","k"]
-   #  text = f"f0={popt[0]}+/-{np.absolute(pcov[0][0])**0.5}"
-   #  print(text)
-   #  for ind,var in enumerate(varnames):
-   #      vnum = ind+1
-   #      text = f" {var}={popt[vnum]}+/-{np.absolute(pcov[vnum][vnum])**0.5}"
-   #      print(text)
-   #  print("d=0.4")
+    theorypopt, pcov = curve_fit(theory_bigsbpl, xdata, ydata, p0=initial_guess,bounds=bounds,sigma=yerr)
+    popt = theorypopt
+    varnames = ["nu0_1","nu_02","k"]
+    text = f"f0={popt[0]}+/-{np.absolute(pcov[0][0])**0.5}"
+    print(text)
+    for ind,var in enumerate(varnames):
+        vnum = ind+1
+        text = f" {var}={popt[vnum]}+/-{np.absolute(pcov[vnum][vnum])**0.5}"
+        print(text)
+    print("d=0.4")
 #     k = 2
 #     p = 2
 #     a1 = -k/(2*(4-k))
@@ -433,7 +432,7 @@ for band,ax in zip(bands,axs):
     # yline = wrap_relbigsbpl((xline,nu), *relbigpopt)
   #   ax.plot(xline,yline,alpha=0.5,color='black',label="rel",ls=":")
     yline = wrap_bigsbpl((xline,nu), *bigpopt)
-    ax.plot(xline,yline,alpha=0.5,color='black',label='rel+nonrel')
+    # ax.plot(xline,yline,alpha=0.5,color='black',label='rel+nonrel')
    #      
    #  
    #  popt, pcov = curve_fit(wrap_sbpl, xdata, ydata, p0=initial_guess,bounds=bounds)
@@ -442,14 +441,14 @@ for band,ax in zip(bands,axs):
     ax.set_ylabel("Flux Density (Jy)")
     ax.set_xlim(1e-2,365)
     ax.set_ylim(1e-5,3e-3)
-    test_theory = [1.e-3, 9 , 50 , 2]
+    test_theory = [1.e-3, 9 , 50 , 0]
     t_break = get_tbreak((xline,nu),*test_theory)
     print(test_theory)
-    # ax.axvline(t_break,ls='-')
-    # yline = theory_bigsbpl((xline,nu), *test_theory)
-    # ax.plot(xline,yline,color='black',alpha=0.5,ls=':')
-    # yline = verify_powerlaw(xline,1e-3,1,0.72,-0.333,3,-1.5)
-    # ax.plot(xline,yline,color='black',alpha=0.5,ls='-')
+    ax.axvline(t_break,ls='-')
+    yline = theory_bigsbpl((xline,nu), *test_theory)
+    ax.plot(xline,yline,color='black',alpha=0.5,ls=':',label='theory')
+    yline = verify_powerlaw(xline,1e-3,2,0.5,0.5,2,-0.75)
+    ax.plot(xline,yline,color='black',alpha=0.5,ls='-')
 
 
 #     test_theory = [1.e-3, 9 , 50 , 0]
