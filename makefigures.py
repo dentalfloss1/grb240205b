@@ -151,6 +151,8 @@ else:
         a1 = -k/(2*(4-k))
         b1 = -3*k/(5*(4-k))
         b2 = -3/2
+        p = 2.2
+        nu0_3 = 1e9
         t, nu = ivar
         res = []
         t_break = np.amax(t)
@@ -162,32 +164,46 @@ else:
                 break
         for tval,nuval in zip(t,nu):
             b1_1 = -3*k/(5*(4-k))
-            c1_1 = 2
-            c2_1 = 1/3
-            c3_1 = -0.6
+            b2_1 = -3/2
+            b3_1 = -(4-3*k)/(2*(4-k))
             nua_1 = nu0_1*(tval/t0)**b1_1
-            num_1 = nu0_2*(tval/t0)**b2
-            fnu_m1 = f0*(tval/t0)**a1
-            # fpk_1 = f0*(tval/t0)**a1
-            fpk_1 = fnu_m1*(nua_1/num_1)**(1/3)
-            p=2.2
+            num_1 = nu0_2*(tval/t0)**b2_1
+            nuc_1 = nu0_3*(tval/t0)**b3_1
+            if nuval < nua_1:
+                c1_1 = 2
+                c2_1 = 1/3
+                c3_1 = -(p-1)/2
+                fnu_m1 = f0*(tval/t0)**a1
+                fpk_1 = fnu_m1*(nua_1/num_1)**(1/3)
+                nubreak1_1 = nua_1
+                nubreak2_1 = num_1
+            else:
+                c1_1 = 1/3
+                c2_1 = -(p-1)/2
+                c3_1 = -1
+                fpk_1 = f0*(tval/t0)**a1
+                nubreak1_1 = num_1
+                nubreak2_1 = nuc_1
             a1_2 = -k/(2*(4-k))
-            b1_2 = -(12*p+8-3*p*k+2*k)/(2*(4-k)*(p+4))
+            b1_2 = -3/2
+            b2_2 = -(12*p+8-3*p*k+2*k)/(2*(4-k)*(p+4))
             c1_2 = 2
             c2_2 = 5/2
-            c3_2 = -0.6
-            nua_2 = nu0_1*(tval/t0)**b1_2
-            num_2 = nu0_2*(tval/t0)**b2
+            c3_2 = -(p-1)/2
+            num_2 = nu0_1*(tval/t0)**b1_2
+            nua_2 = nu0_2*(tval/t0)**b2_2
+            num_break2 = nu0_1*(t_break/t0)**b1_2
+            nua_break2 = nu0_2*(t_break/t0)**b2_2
             fnu_m_2 = f0*(tval/t0)**a1_2
-            # fnu_m = f0*(tval/t0)**a1
-            # fpk = fnu_m*(nua/num)**(1/3)
-            fpk_2 = fnu_m_2
+            fpk = f0*(num_2/nua_2)**(3)
+            fpk_2 = fpk
             if tval < t_break:
-                result = dsbpl(nuval,fpk_1,nua_1,c1_1,c2_1,num_1,c3_1,s)
+                result = dsbpl(nuval,fpk_1,nubreak1_1,c1_1,c2_1,nubreak2_1,c3_1,s)
             else:
-                break1val = dsbpl(nuval,f0*(t_break/t0)**a1,nu0_1*(t_break/t0)**b1_1,c1_1,c2_1,nu0_2*(t_break/t0)**b2,c3_1,s)
-                break2val = dsbpl(nuval,f0*(t_break/t0)**a1_2,nu0_1*(t_break/t0)**b1_2,c1_2,c2_2,nu0_2*(t_break/t0)**b2,c3_2,s)
-                result = break1val*dsbpl(nuval,fpk_2,nua_2,c1_2,c2_2,num_2,c3_2,s)/break2val
+               #  break1val = dsbpl(nuval,f0*(t_break/t0)**a1,nubreak1_1,c1_1,c2_1,nubreak2_1,c3_1,s)
+               #  break2val = dsbpl(nuval,f0*(t_break/t0)**a1_2,num_break2,c1_2,c2_2,nua_break2,c3_2,s)
+               #  result = break1val*dsbpl(nuval,fpk_2,num_2,c1_2,c2_2,nua_2,c3_2,s)/break2val
+               result = dsbpl(nuval,fpk_2,num_2,c1_2,c2_2,nua_2,c3_2,s)
 
             res.append(result)
         return np.array(res)
@@ -441,7 +457,7 @@ for band,ax in zip(bands,axs):
     ax.set_ylabel("Flux Density (Jy)")
     ax.set_xlim(1e-2,365)
     ax.set_ylim(1e-5,3e-3)
-    test_theory = [1.e-3, 9 , 50 , 0]
+    test_theory = [1.e-3, 9 , 50 , 2]
     t_break = get_tbreak((xline,nu),*test_theory)
     print(test_theory)
     ax.axvline(t_break,ls='-')
