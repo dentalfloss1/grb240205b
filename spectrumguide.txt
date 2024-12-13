@@ -4,7 +4,8 @@ For the forward and nonrel components, "free" means the spectral indices are all
 2. Fixed rev + free forward
 3. Fixed rev + fixed forward (spectrum 1)
 4. Fixed rev + free forward + free nonrel
-6. Fixed rev + fixed forward + free nonrel
+5. Fixed rev + fixed forward + free nonrel
+6. Fixed rev + fixed forward but DSPL (spectrum 1 only but with dsbpl)
 7. Fixed rev + Fully modelled spectrum 1 into 2 
 8. Fixed rev + fixed forward + fixed nonrel
 9. Free rev + fully modelled spectrum 1 into 2

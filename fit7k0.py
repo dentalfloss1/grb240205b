@@ -250,13 +250,13 @@ else:
     def powerlaw(t,a,k):
         return a*t**k
 
-    def reverse_shock(ivar, f0, t0,k):
+    def reverse_shock(ivar, f0, nu0_1,k):
         t, nu = ivar
         s=10
         res = []
         p=2
-        nu0_1 = 1
-        nu0_2 = 15
+        t0=0.05
+        nu0_2 = 100
         nu0_3 = 1e9
         a1 = -(47-10*k)/(12*(4-k))
         b1 = -(32-7*k)/(15*(4-k))
@@ -281,19 +281,18 @@ else:
                 result = dsbpl(nuval,fpk,num,c1,c2,nuc,c3,s)
             res.append(result)
         return np.array(res)
-    def wrap_bigsbpl(ivar, f0, frev, trev,nu01,nu02):
+    def wrap_bigsbpl(ivar, f0, frev, nu0rev,nu01,nu02):
         t0 = 1
         s = 10
         d = 0.2
         k=0
-        t_nonrel=22
         t, nu = ivar
         res = []
-        frev = reverse_shock(ivar, frev, trev,k)
+        frev = reverse_shock(ivar, frev, nu0rev,k)
         f = theory_bigsbpl(ivar, f0, nu01, nu02, k)
         return frev + f
-    initial_guess = [1e-3,5e-5, 3.5,10,50]
-    bounds = [(1e-6,1),(3e-5,2),(3,4),(1,100),(15,300)]
+    initial_guess = [1e-3,5e-5, 10,10,50]
+    bounds = [(1e-6,1),(3e-5,2),(9,11),(1,100),(15,300)]
     bounds0 = tuple([b[0] for b in bounds])
     bounds1 = tuple([b[1] for b in bounds])
     bounds = [bounds0,bounds1]
@@ -304,7 +303,7 @@ else:
     ydata = curdata['flux']*1e-6
     yerr = np.sqrt(curdata['err']**2 + curdata['rms']**2)*1e-6
     popt, pcov = curve_fit(wrap_bigsbpl, xdata, ydata, p0=initial_guess,bounds=bounds,sigma=yerr)
-    varnames = ["frev","trev","nu01","nu02"]
+    varnames = ["frev","nu0rev","nu01","nu02"]
     text = f"f0={popt[0]}+/-{np.absolute(pcov[0][0])**0.5}"
     print(text)
     for ind,var in enumerate(varnames):
