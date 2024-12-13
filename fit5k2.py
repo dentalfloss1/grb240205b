@@ -281,7 +281,7 @@ else:
                 result = dsbpl(nuval,fpk,num,c1,c2,nuc,c3,s)
             res.append(result)
         return np.array(res)
-    def wrap_bigsbpl(ivar, f0, frev, trev,nu0, a2):
+    def wrap_bigsbpl(ivar, f0, frev, trev,nu0,a2):
         t0 = 1
         s = 10
         d = 0.2
@@ -303,8 +303,8 @@ else:
             # res1 = dsbpl(nuval,fpk_1,nubreak1_1,c1_1,c2_1,nubreak2_1,c3_1,s)
             res.append(f(nuval))
         return frev + np.array(res)
-    initial_guess = [1e-3,5e-5, 3.5,30, -1]
-    bounds = [(1e-6,1),(3e-5,2),(3,10),(21,100),(-4,-0.1)]
+    initial_guess = [1e-3,5e-5, 3.5,30,-1]
+    bounds = [(1e-6,1),(3e-5,2),(3,4),(21,100),(-4,4)]
     bounds0 = tuple([b[0] for b in bounds])
     bounds1 = tuple([b[1] for b in bounds])
     bounds = [bounds0,bounds1]
