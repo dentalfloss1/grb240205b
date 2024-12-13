@@ -229,16 +229,16 @@ else:
     xdata = (tdata,nudata)
     ydata = curdata['flux']*1e-6
     yerr = np.sqrt(curdata['err']**2 + curdata['rms']**2)*1e-6
-    theorypopt, pcov = curve_fit(theory_bigsbpl, xdata, ydata, p0=initial_guess,bounds=bounds,sigma=yerr)
-    popt = theorypopt
-    varnames = ["nu0_1","nu_02","k"]
-    text = f"f0={popt[0]}+/-{np.absolute(pcov[0][0])**0.5}"
-    print(text)
-    for ind,var in enumerate(varnames):
-        vnum = ind+1
-        text = f" {var}={popt[vnum]}+/-{np.absolute(pcov[vnum][vnum])**0.5}"
-        print(text)
-    print("s=10")
+  #   theorypopt, pcov = curve_fit(theory_bigsbpl, xdata, ydata, p0=initial_guess,bounds=bounds,sigma=yerr)
+  #   popt = theorypopt
+  #   varnames = ["nu0_1","nu_02","k"]
+  #   text = f"f0={popt[0]}+/-{np.absolute(pcov[0][0])**0.5}"
+  #   print(text)
+  #   for ind,var in enumerate(varnames):
+  #       vnum = ind+1
+  #       text = f" {var}={popt[vnum]}+/-{np.absolute(pcov[vnum][vnum])**0.5}"
+  #       print(text)
+  #   print("s=10")
 #     k = 2
 #     p = 2
 #     a1 = -k/(2*(4-k))
@@ -249,32 +249,72 @@ else:
 #     theorypopt = [0.000920, 10,20,0]
     def powerlaw(t,a,k):
         return a*t**k
-    def wrap_bigsbpl(ivar, f0, nu0, a1, a2, b1, c1, c2, t_nonrel):
+
+    def reverse_shock(ivar, f0, t0,k):
+        t, nu = ivar
+        s=10
+        res = []
+        p=2
+        nu0_1 = 1
+        nu0_2 = 15
+        nu0_3 = 1e9
+        a1 = -(47-10*k)/(12*(4-k))
+        b1 = -(32-7*k)/(15*(4-k))
+        b2 = -(73-14*k)/(12*(4-k))
+        b3 = -(73-14*k)/(12*(4-k))
+        for tval,nuval in zip(t,nu):
+            fnu_m = f0*(tval/t0)**a1
+            nua = nu0_1*(tval/t0)**b1
+            num = nu0_2*(tval/t0)**b2
+            nuc = nu0_3*(tval/t0)**b3
+            if nuval < nua:
+                c1 = 2 
+                c2 = 1/3
+                c3 = -(p-1)/2
+                fpk = fnu_m*(nua/num)**(1/3)
+                result = dsbpl(nuval,fpk,nua,c1,c2,num,c3,s)
+            else:
+                c1 = 1/3
+                c2 = -(p-1)/2
+                c3 = -(p-1)/2 - 0.1
+                fpk = fnu_m
+                result = dsbpl(nuval,fpk,num,c1,c2,nuc,c3,s)
+            res.append(result)
+        return np.array(res)
+    def wrap_bigsbpl(ivar, f0, frev, trev,nu0, c2,k):
         t0 = 1
         s = 10
         d = 0.2
+        t_nonrel=22
+        a1 = -k/(2*(4-k))
+        a2 =(3-2*k)/(5-k)
+        b1 =-(3*k)/(5*(4-k))
+        c1 = 2 
         t, nu = ivar
         res = []
+        frev = reverse_shock(ivar, frev, trev,k)
         for tval,nuval in zip(t,nu):
             fpk =  sbpl(amplitude=f0, x_break=t_nonrel, alpha_1=-a1, alpha_2=-a2, delta=d)(tval)
             nupk = nu0*(tval/t0)**b1
          #    nupk2 = nu0*(tval/t0)**b2
             f = sbpl(amplitude=fpk, x_break=nupk, alpha_1=-c1, alpha_2=-c2, delta=d)
+            # f = sbpl(amplitude=fpk, x_break=nupk, alpha_1=-c1, alpha_2=-c2, delta=d)
+            # res1 = dsbpl(nuval,fpk_1,nubreak1_1,c1_1,c2_1,nubreak2_1,c3_1,s)
             res.append(f(nuval))
-        return np.array(res)
-    initial_guess = [1e-3, 25, -1,-1, -0.5, 2.5,-0.6, 22]
-    bounds = [(1e-6,1),(21,100),(-3,-0.1),(-3,-0.1),(-3,-0.1),(0.1,3),(-3,-0.1),(15,25)]
+        return frev + np.array(res)
+    initial_guess = [1e-3,5e-5, 3,40,-1,2.0]
+    bounds = [(1e-6,1),(3e-5,2),(1.5,10),(21,100),(-4,-0.1),(1,3)]
     bounds0 = tuple([b[0] for b in bounds])
     bounds1 = tuple([b[1] for b in bounds])
     bounds = [bounds0,bounds1]
-    curdata = plotdata[plotdata['obsdate'] > 1]
+    curdata = plotdata
     tdata = curdata['obsdate']
     nudata = curdata['freq']
     xdata = (tdata,nudata)
     ydata = curdata['flux']*1e-6
     yerr = np.sqrt(curdata['err']**2 + curdata['rms']**2)*1e-6
     popt, pcov = curve_fit(wrap_bigsbpl, xdata, ydata, p0=initial_guess,bounds=bounds,sigma=yerr)
-    varnames = ["nu0","alpha1","alpha2","beta1","gamma1","gamma2","t_nonrel"]
+    varnames = ["frev","trev","nu0","gamma2","k"]
     text = f"f0={popt[0]}+/-{np.absolute(pcov[0][0])**0.5}"
     print(text)
     for ind,var in enumerate(varnames):
@@ -282,7 +322,13 @@ else:
         text = f" {var}={popt[vnum]}+/-{np.absolute(pcov[vnum][vnum])**0.5}"
         print(text)
     print("d=0.2")
+    print("alpha1=-0.5")
+    print("alpha2=-1/3")
+    print("beta1=-0.6")
+    print("gamma1=2")
 bigpopt = popt
+trypopt = bigpopt.copy()
+trypopt[-1] = 2.2
 def wrap_latebigsbpl(ivar, f0, nu0, a1, b1, c1, c2):
     d = 0.2
     t0 = 20.0
@@ -350,6 +396,7 @@ earlybigpopt = popt
 def wrap_relbigsbpl(ivar, f0,nu0, a1,b1,c1,c2):
     d = 0.2
     t0 = 1
+    b1 = -3/2
     t, nu = ivar
     res = []
     for tval,nuval in zip(t,nu):
@@ -358,9 +405,9 @@ def wrap_relbigsbpl(ivar, f0,nu0, a1,b1,c1,c2):
         f = sbpl(amplitude=fpk, x_break=nupk, alpha_1=-c1, alpha_2=-c2, delta=d)
         res.append(f(nuval))
     return np.array(res)
-curdata = plotdata[(plotdata['obsdate'] < 22)]
-initial_guess = [5e-4,30,-0.25 ,-0.3, 1,-1]
-bounds = [(1e-6,1e-2),(21,100),(-2,0),(-2,0),(0,2),(-3,0)]
+curdata = plotdata[(plotdata['obsdate'] >1)]
+initial_guess = [5e-4,30,-0.25 ,-3/2, 1,-1]
+bounds = [(1e-6,1e-2),(21,100),(-2,0),(-4,-3/2 + 0.2),(0,2),(-3,0)]
 bounds0 = tuple([b[0] for b in bounds])
 bounds1 = tuple([b[1] for b in bounds])
 bounds = [bounds0,bounds1]
@@ -369,17 +416,17 @@ nudata = curdata['freq']
 xdata = (tdata,nudata)
 ydata = curdata['flux']*1e-6
 yerr = curdata['err']*1e-6
-# popt, pcov = curve_fit(wrap_relbigsbpl, xdata, ydata, p0=initial_guess,bounds=bounds,sigma=yerr)
-# varnames = ["nu0","a1","b1","c1","c2"]
-# text = f"f0={popt[0]}+/-{np.absolute(pcov[0][0])**0.5}"
-# print(text)
-# for ind,var in enumerate(varnames):
-#     vnum = ind+1
-#     text = f" {var}={popt[vnum]}+/-{np.absolute(pcov[vnum][vnum])**0.5}"
-#     print(text)
-# print("d=0.2")
-# # latebigpopt = [8e-5,10,1,-1,2,-2]
-# relbigpopt = popt
+popt, pcov = curve_fit(wrap_relbigsbpl, xdata, ydata, p0=initial_guess,bounds=bounds,sigma=yerr)
+varnames = ["nu0","a1","b1","c1","c2"]
+text = f"f0={popt[0]}+/-{np.absolute(pcov[0][0])**0.5}"
+print(text)
+for ind,var in enumerate(varnames):
+    vnum = ind+1
+    text = f" {var}={popt[vnum]}+/-{np.absolute(pcov[vnum][vnum])**0.5}"
+    print(text)
+print("d=0.2")
+# latebigpopt = [8e-5,10,1,-1,2,-2]
+relbigpopt = popt
 
 
 # def theory_bigsbpl(ivar, f0, nu0_1, nu0_2, k):
@@ -456,10 +503,12 @@ for band,ax in zip(bands,axs):
            ax.scatter(subxdata,subydata,label=f'{freq} GHz',marker=next(marker),color='black')
         
     nu = np.array([freq for f in xline])
-    # yline = wrap_relbigsbpl((xline,nu), *relbigpopt)
-  #   ax.plot(xline,yline,alpha=0.5,color='black',label="rel",ls=":")
+    yline = wrap_relbigsbpl((xline,nu), *relbigpopt)
+   #  ax.plot(xline,yline,alpha=0.5,color='black',label="rel",ls="-")
     yline = wrap_bigsbpl((xline,nu), *bigpopt)
-    # ax.plot(xline,yline,alpha=0.5,color='black',label='rel+nonrel')
+    ax.plot(xline,yline,alpha=0.5,color='black',label=f'k={bigpopt[-1]}')
+    yline = wrap_bigsbpl((xline,nu), *trypopt)
+    ax.plot(xline,yline,alpha=0.5,color='black',label=f'k={trypopt[-1]}',ls=':')
    #      
    #  
    #  popt, pcov = curve_fit(wrap_sbpl, xdata, ydata, p0=initial_guess,bounds=bounds)
@@ -473,7 +522,7 @@ for band,ax in zip(bands,axs):
     # print(test_theory)
     ax.axvline(t_break,ls='-')
     yline = theory_bigsbpl((xline,nu), *test_theory)
-    ax.plot(xline,yline,color='black',alpha=0.5,ls=':',label='theory')
+    # ax.plot(xline,yline,color='black',alpha=0.5,ls=':',label='theory')
     yline = verify_powerlaw(xline,1e-3,2,0.5,0.5,2,-0.75)
     # ax.plot(xline,yline,color='black',alpha=0.5,ls='-')
 
@@ -565,19 +614,19 @@ plt.close()
 popt = bigpopt
 chisq = 0
 dof = len(plotdata) - len(popt)
-for d,nu,f,ferr,rms in plotdata[['obsdate','freq','flux','err','rms']].to_numpy():
-    errtot = np.sqrt(ferr**2 + rms**2)*1e-6
-    model = yline = wrap_bigsbpl((np.array([d]),np.array([nu])), *popt)
-    chisq += ((f*1e-6 - model) / errtot)**2 / dof
-print("red. chisq:",chisq,"dof:",dof,"fitting indices")
-popt = theorypopt
-chisq = 0
-dof = len(plotdata) - len(popt)
-for d,nu,f,ferr,rms in plotdata[['obsdate','freq','flux','err','rms']].to_numpy():
-    errtot = np.sqrt(ferr**2 + rms**2)*1e-6
-    model = yline = theory_bigsbpl((np.array([d]),np.array([nu])), *popt)
-    chisq += ((f*1e-6 - model) / errtot)**2 / dof
-print("red. chisq:",chisq,"dof:",dof,"fitting theory params")
+# for d,nu,f,ferr,rms in plotdata[['obsdate','freq','flux','err','rms']].to_numpy():
+#     errtot = np.sqrt(ferr**2 + rms**2)*1e-6
+#     model = yline = wrap_bigsbpl((np.array([d]),np.array([nu])), *popt)
+#     chisq += ((f*1e-6 - model) / errtot)**2 / dof
+# print("red. chisq:",chisq,"dof:",dof,"fitting indices")
+# popt = theorypopt
+# chisq = 0
+# dof = len(plotdata) - len(popt)
+# for d,nu,f,ferr,rms in plotdata[['obsdate','freq','flux','err','rms']].to_numpy():
+#     errtot = np.sqrt(ferr**2 + rms**2)*1e-6
+#     model = yline = theory_bigsbpl((np.array([d]),np.array([nu])), *popt)
+#     chisq += ((f*1e-6 - model) / errtot)**2 / dof
+# print("red. chisq:",chisq,"dof:",dof,"fitting theory params")
 
 import matplotlib.pyplot as plt
 import pandas as pd 
