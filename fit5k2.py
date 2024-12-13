@@ -287,7 +287,7 @@ else:
         d = 0.2
         k=2
         a1 = -k/(2*(4-k))
-        b1 = -3/2
+        b1 = -3*k/(5*(4-k))
         c1 = 2
         c2 = 1/3
         t_nonrel=22
@@ -557,7 +557,7 @@ for band,ax in zip(bands,axs):
 # plt.legend()
 ax.set_xlabel("Days post-trigger")
 plt.tight_layout()
-plt.savefig("lightcurve.png")
+plt.savefig("fit5k2.png")
 plt.close()
     
 fig = plt.figure()

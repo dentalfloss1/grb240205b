@@ -553,7 +553,7 @@ for band,ax in zip(bands,axs):
 # plt.legend()
 ax.set_xlabel("Days post-trigger")
 plt.tight_layout()
-plt.savefig("lightcurve.png")
+plt.savefig("fit4k0.png")
 plt.close()
     
 fig = plt.figure()
