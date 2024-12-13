@@ -285,13 +285,14 @@ else:
         t0 = 1
         s = 10
         d = 0.2
-        k=2
+        k=0
         t_nonrel=22
         t, nu = ivar
         res = []
         frev = reverse_shock(ivar, frev, trev,k)
         for tval,nuval in zip(t,nu):
-            fpk = f0*(tval/t0)**a1
+            # fpk =  sbpl(amplitude=f0, x_break=t_nonrel, alpha_1=-a1, alpha_2=-a2, delta=d)(tval)
+            fpk =  f0*(tval/t0)**(a1)
             nupk = nu0*(tval/t0)**b1
          #    nupk2 = nu0*(tval/t0)**b2
             f = sbpl(amplitude=fpk, x_break=nupk, alpha_1=-c1, alpha_2=-c2, delta=d)

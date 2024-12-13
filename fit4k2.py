@@ -281,7 +281,7 @@ else:
                 result = dsbpl(nuval,fpk,num,c1,c2,nuc,c3,s)
             res.append(result)
         return np.array(res)
-    def wrap_bigsbpl(ivar, f0, frev, trev,nu0, a1, b1, c1, c2):
+    def wrap_bigsbpl(ivar, f0, frev, trev,nu0, a1, a2, b1, c1, c2):
         t0 = 1
         s = 10
         d = 0.2
@@ -291,7 +291,7 @@ else:
         res = []
         frev = reverse_shock(ivar, frev, trev,k)
         for tval,nuval in zip(t,nu):
-            fpk = f0*(tval/t0)**a1
+            fpk =  sbpl(amplitude=f0, x_break=t_nonrel, alpha_1=-a1, alpha_2=-a2, delta=d)(tval)
             nupk = nu0*(tval/t0)**b1
          #    nupk2 = nu0*(tval/t0)**b2
             f = sbpl(amplitude=fpk, x_break=nupk, alpha_1=-c1, alpha_2=-c2, delta=d)
@@ -299,8 +299,8 @@ else:
             # res1 = dsbpl(nuval,fpk_1,nubreak1_1,c1_1,c2_1,nubreak2_1,c3_1,s)
             res.append(f(nuval))
         return frev + np.array(res)
-    initial_guess = [1e-3,5e-5, 3.5,30, -1, -1, 2, 1/3]
-    bounds = [(1e-6,1),(3e-5,2),(3,10),(21,100),(-4,-0.1),(-4,-0.1),(0.1,3),(-3,3)]
+    initial_guess = [1e-3,5e-5, 3.5,30, -1,-1, -1, 2, 1/3]
+    bounds = [(1e-6,1),(3e-5,2),(3,10),(21,100),(-4,-0.1),(-4,-0.1),(-4,-0.1),(0.1,3),(-3,3)]
     bounds0 = tuple([b[0] for b in bounds])
     bounds1 = tuple([b[1] for b in bounds])
     bounds = [bounds0,bounds1]
@@ -311,7 +311,7 @@ else:
     ydata = curdata['flux']*1e-6
     yerr = np.sqrt(curdata['err']**2 + curdata['rms']**2)*1e-6
     popt, pcov = curve_fit(wrap_bigsbpl, xdata, ydata, p0=initial_guess,bounds=bounds,sigma=yerr)
-    varnames = ["frev","trev","nu0","a1","b1","c1","c2"]
+    varnames = ["frev","trev","nu0","a1","a2","b1","c1","c2"]
     text = f"f0={popt[0]}+/-{np.absolute(pcov[0][0])**0.5}"
     print(text)
     for ind,var in enumerate(varnames):
