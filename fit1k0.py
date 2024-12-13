@@ -281,21 +281,18 @@ else:
                 result = dsbpl(nuval,fpk,num,c1,c2,nuc,c3,s)
             res.append(result)
         return np.array(res)
-    def wrap_bigsbpl(ivar, f0, frev, trev,nu0, c2):
+    def wrap_bigsbpl(ivar, f0, frev, trev,nu0, a1, b1, c1, c2):
         t0 = 1
         s = 10
         d = 0.2
-        k=2
+        k=0
         t_nonrel=22
-        a1 = -k/(2*(4-k))
-        a2 =(3-2*k)/(5-k)
-        b1 =-(3*k)/(5*(4-k))
-        c1 = 2 
         t, nu = ivar
         res = []
         frev = reverse_shock(ivar, frev, trev,k)
         for tval,nuval in zip(t,nu):
-            fpk =  sbpl(amplitude=f0, x_break=t_nonrel, alpha_1=-a1, alpha_2=-a2, delta=d)(tval)
+            # fpk =  sbpl(amplitude=f0, x_break=t_nonrel, alpha_1=-a1, alpha_2=-a2, delta=d)(tval)
+            fpk =  f0*(tval/t0)**(a1)
             nupk = nu0*(tval/t0)**b1
          #    nupk2 = nu0*(tval/t0)**b2
             f = sbpl(amplitude=fpk, x_break=nupk, alpha_1=-c1, alpha_2=-c2, delta=d)
@@ -303,8 +300,8 @@ else:
             # res1 = dsbpl(nuval,fpk_1,nubreak1_1,c1_1,c2_1,nubreak2_1,c3_1,s)
             res.append(f(nuval))
         return frev + np.array(res)
-    initial_guess = [1e-3,5e-5, 3,40,-1]
-    bounds = [(1e-6,1),(3e-5,2),(1.5,10),(21,100),(-4,-0.1)]
+    initial_guess = [1e-3,5e-5, 3,30, -1, -1, 2, 1/3]
+    bounds = [(1e-6,1),(3e-5,2),(1e-2,10),(21,100),(-4,-0.1),(-4,-0.1),(0.1,3),(-3,3)]
     bounds0 = tuple([b[0] for b in bounds])
     bounds1 = tuple([b[1] for b in bounds])
     bounds = [bounds0,bounds1]
@@ -315,7 +312,7 @@ else:
     ydata = curdata['flux']*1e-6
     yerr = np.sqrt(curdata['err']**2 + curdata['rms']**2)*1e-6
     popt, pcov = curve_fit(wrap_bigsbpl, xdata, ydata, p0=initial_guess,bounds=bounds,sigma=yerr)
-    varnames = ["frev","trev","nu0","gamma2"]
+    varnames = ["frev","trev","nu0","a1","b1","c1","c2"]
     text = f"f0={popt[0]}+/-{np.absolute(pcov[0][0])**0.5}"
     print(text)
     for ind,var in enumerate(varnames):
@@ -323,10 +320,6 @@ else:
         text = f" {var}={popt[vnum]}+/-{np.absolute(pcov[vnum][vnum])**0.5}"
         print(text)
     print("d=0.2")
-    print("alpha1=-0.5")
-    print("alpha2=-1/3")
-    print("beta1=-0.6")
-    print("gamma1=2")
 bigpopt = popt
 trypopt = bigpopt.copy()
 trypopt[-1] = 2.2
@@ -507,9 +500,9 @@ for band,ax in zip(bands,axs):
     yline = wrap_relbigsbpl((xline,nu), *relbigpopt)
    #  ax.plot(xline,yline,alpha=0.5,color='black',label="rel",ls="-")
     yline = wrap_bigsbpl((xline,nu), *bigpopt)
-    ax.plot(xline,yline,alpha=0.5,color='black',label=f'k={bigpopt[-1]}')
+    ax.plot(xline,yline,alpha=0.5,color='black')
     yline = wrap_bigsbpl((xline,nu), *trypopt)
-    ax.plot(xline,yline,alpha=0.5,color='black',label=f'k={trypopt[-1]}',ls=':')
+    # ax.plot(xline,yline,alpha=0.5,color='black',label=f'k={trypopt[-1]}',ls=':')
    #      
    #  
    #  popt, pcov = curve_fit(wrap_sbpl, xdata, ydata, p0=initial_guess,bounds=bounds)
@@ -538,7 +531,7 @@ for band,ax in zip(bands,axs):
 #     ax.plot(xline,yline,color='black',ls='--',alpha=0.5,label='nonrel')
     if freq==9.0:
         yline = wrap_earlybigsbpl(xline, *earlybigpopt)
-        ax.plot(xline,yline,color='black',ls='--',alpha=0.5,label='Reverse Shock')
+     #    ax.plot(xline,yline,color='black',ls='--',alpha=0.5,label='Reverse Shock')
 # def wrap_latebigsbpl(ivar, f0, nu0, a1, b1, c1, c2):
     if len(np.unique(curdata['freq'])) >1:
         freq1 = curdata['freq'].min()
