@@ -266,7 +266,7 @@ else:
         f = theory_bigsbpl(ivar, f0, nu01, nu02, k)
         return frev + f
     initial_guess = [1e-3,5e-5, 10,10,50]
-    bounds = [(1e-6,1),(3e-5,2),(9,11),(1,100),(15,300)]
+    bounds = [(1e-6,1),(3e-5,2),(9,11),(1,100),(15,1e5)]
     bounds0 = tuple([b[0] for b in bounds])
     bounds1 = tuple([b[1] for b in bounds])
     bounds = [bounds0,bounds1]
@@ -277,7 +277,7 @@ else:
     ydata = curdata['flux']*1e-6
     yerr = np.sqrt(curdata['err']**2 + curdata['rms']**2)*1e-6
     popt, pcov = curve_fit(wrap_bigsbpl, xdata, ydata, p0=initial_guess,bounds=bounds,sigma=yerr)
-    varnames = ["frev","nu0rev","nu01","nu02"]
+    varnames = ["f0_rev","nua0_rev","nua_0","num_0"]
     text = f"f0={popt[0]}+/-{np.absolute(pcov[0][0])**0.5}"
     print(text)
     for ind,var in enumerate(varnames):
@@ -322,8 +322,9 @@ for band,ax in zip(bands,axs):
     nu = np.array([freq for f in xline])
     yline = wrap_bigsbpl((xline,nu), *bigpopt)
     ax.plot(xline,yline,alpha=0.5,color='black')
-   #  yline = wrap_bigsbpl((xline,nu), *trypopt)
-    # ax.plot(xline,yline,alpha=0.5,color='black',label=f'k={trypopt[-1]}',ls=':')
+ #    trypopt = [1.8e-3, 355e-6, 9.5, 50, 400]
+ #    yline = wrap_bigsbpl((xline,nu), *trypopt)
+ #    ax.plot(xline,yline,alpha=0.5,color='black',label=f'tryfit',ls=':')
    #      
    #  
    #  popt, pcov = curve_fit(wrap_sbpl, xdata, ydata, p0=initial_guess,bounds=bounds)
@@ -371,7 +372,7 @@ for band,ax in zip(bands,axs):
 # plt.legend()
 ax.set_xlabel("Days post-trigger")
 plt.tight_layout()
-plt.savefig("fit7k2.png")
+plt.savefig("tryfit.png")
 plt.close()
     
 fig = plt.figure()
@@ -425,19 +426,11 @@ plt.close()
 popt = bigpopt
 chisq = 0
 dof = len(plotdata) - len(popt)
-# for d,nu,f,ferr,rms in plotdata[['obsdate','freq','flux','err','rms']].to_numpy():
-#     errtot = np.sqrt(ferr**2 + rms**2)*1e-6
-#     model = yline = wrap_bigsbpl((np.array([d]),np.array([nu])), *popt)
-#     chisq += ((f*1e-6 - model) / errtot)**2 / dof
-# print("red. chisq:",chisq,"dof:",dof,"fitting indices")
-# popt = theorypopt
-# chisq = 0
-# dof = len(plotdata) - len(popt)
-# for d,nu,f,ferr,rms in plotdata[['obsdate','freq','flux','err','rms']].to_numpy():
-#     errtot = np.sqrt(ferr**2 + rms**2)*1e-6
-#     model = yline = theory_bigsbpl((np.array([d]),np.array([nu])), *popt)
-#     chisq += ((f*1e-6 - model) / errtot)**2 / dof
-# print("red. chisq:",chisq,"dof:",dof,"fitting theory params")
+for d,nu,f,ferr,rms in plotdata[['obsdate','freq','flux','err','rms']].to_numpy():
+    errtot = np.sqrt(ferr**2 + rms**2)*1e-6
+    model = yline = wrap_bigsbpl((np.array([d]),np.array([nu])), *popt)
+    chisq += ((f*1e-6 - model) / errtot)**2 / dof
+print("red. chisq:",chisq,"dof:",dof,"fitting indices")
 
 import matplotlib.pyplot as plt
 import pandas as pd 

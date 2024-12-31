@@ -255,29 +255,28 @@ else:
                 result = dsbpl(nuval,fpk,num,c1,c2,nuc,c3,s)
             res.append(result)
         return np.array(res)
-    def wrap_bigsbpl(ivar, f0, frev, nu0rev,nu01,nu02):
+    def wrap_bigsbpl(ivar, f0,nu01,nu02):
         t0 = 1
         s = 10
         d = 0.2
-        k=2
+        k=0
         t, nu = ivar
         res = []
-        frev = reverse_shock(ivar, frev, nu0rev,k)
         f = theory_bigsbpl(ivar, f0, nu01, nu02, k)
-        return frev + f
-    initial_guess = [1e-3,5e-5, 10,10,50]
-    bounds = [(1e-6,1),(3e-5,2),(9,11),(1,100),(15,300)]
+        return  f
+    initial_guess = [1e-3,10,50]
+    bounds = [(1e-6,1),(1,100),(15,300)]
     bounds0 = tuple([b[0] for b in bounds])
     bounds1 = tuple([b[1] for b in bounds])
     bounds = [bounds0,bounds1]
-    curdata = plotdata
+    curdata = plotdata[plotdata['obsdate']>1]
     tdata = curdata['obsdate']
     nudata = curdata['freq']
     xdata = (tdata,nudata)
     ydata = curdata['flux']*1e-6
     yerr = np.sqrt(curdata['err']**2 + curdata['rms']**2)*1e-6
     popt, pcov = curve_fit(wrap_bigsbpl, xdata, ydata, p0=initial_guess,bounds=bounds,sigma=yerr)
-    varnames = ["frev","nu0rev","nu01","nu02"]
+    varnames = ["nu01","nu02"]
     text = f"f0={popt[0]}+/-{np.absolute(pcov[0][0])**0.5}"
     print(text)
     for ind,var in enumerate(varnames):
@@ -371,7 +370,7 @@ for band,ax in zip(bands,axs):
 # plt.legend()
 ax.set_xlabel("Days post-trigger")
 plt.tight_layout()
-plt.savefig("fit7k2.png")
+plt.savefig("fit10k0.png")
 plt.close()
     
 fig = plt.figure()

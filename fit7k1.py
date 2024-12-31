@@ -259,7 +259,7 @@ else:
         t0 = 1
         s = 10
         d = 0.2
-        k=2
+        k=1
         t, nu = ivar
         res = []
         frev = reverse_shock(ivar, frev, nu0rev,k)
@@ -371,7 +371,7 @@ for band,ax in zip(bands,axs):
 # plt.legend()
 ax.set_xlabel("Days post-trigger")
 plt.tight_layout()
-plt.savefig("fit7k2.png")
+plt.savefig("fit7k1.png")
 plt.close()
     
 fig = plt.figure()
