@@ -9,8 +9,7 @@ from scipy.stats import linregress
 import argparse
 trigger = datetime.datetime(2024, 2, 5, 22, 15, 8, 00)
 
-# plotdata = pd.read_csv("grbmeas_30min.csv")
-plotdata = pd.read_csv("grbmeas_45min.csv")
+plotdata = pd.read_csv("grbmeas.csv")
 startdate = [(datetime.datetime.strptime(d, "%Y-%m-%d %H:%M:%S.%f") - trigger).total_seconds()/3600/24 for d in plotdata['start']]
 stopdate = [(datetime.datetime.strptime(d, "%Y-%m-%d %H:%M:%S.%f") - trigger).total_seconds()/3600/24 for d in plotdata['stop']]
 obsdur = [(t2-t1) for t1,t2 in zip(startdate,stopdate)]
@@ -299,7 +298,7 @@ for band,ax in zip(bands,axs):
     xline = np.geomspace(1e-2,365,num=1000)
     for freq in np.sort(np.unique(curdata['freq']))[::-1]:
        if (band=="X"):
-           subcurdata = curdata[(curdata['freq']==freq) & (curdata['obsdate'] < 2.1)]
+           subcurdata = curdata[(curdata['freq']==freq) & (curdata['obsdate'] < 1)]
            subxdata = subcurdata['obsdate']
            subydata = subcurdata['flux']*1e-6
            subyerr = np.sqrt(subcurdata['err']**2 + subcurdata['rms']**2)*1e-6
