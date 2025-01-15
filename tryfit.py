@@ -304,7 +304,7 @@ for band,ax in zip(bands,axs):
            subyerr = np.sqrt(subcurdata['err']**2 + subcurdata['rms']**2)*1e-6
            ax.errorbar(subxdata,subydata,yerr=subyerr,fmt=' ',color='black')
            ax.scatter(subxdata,subydata,label=f'{freq} GHz uvfit fixed position',facecolors='none',edgecolor='black')
-           subcurdata = curdata[(curdata['freq']==freq) & (curdata['obsdate'] >= 2.1)]
+           subcurdata = curdata[(curdata['freq']==freq) & (curdata['obsdate'] >= 1)]
            subxdata = subcurdata['obsdate']
            subydata = subcurdata['flux']*1e-6
            subyerr = np.sqrt(subcurdata['err']**2 + subcurdata['rms']**2)*1e-6
