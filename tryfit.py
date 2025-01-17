@@ -152,7 +152,7 @@ else:
         a1 = -k/(2*(4-k))
         b1 = -3*k/(5*(4-k))
         b2 = -3/2
-        p = 2.1
+        p = 2
         nu0_3 = 1e9
         t, nu = ivar
         y1 = []
@@ -227,7 +227,7 @@ else:
         t, nu = ivar
         s=10
         res = []
-        p=2.1
+        p=2
         t0=0.05
         nu0_2 = 100
         nu0_3 = 1e9
@@ -265,7 +265,7 @@ else:
         f = theory_bigsbpl(ivar, f0, nu01, nu02, k)
         return frev + f
     initial_guess = [1e-3,5e-5, 10,10,50]
-    bounds = [(1e-6,1),(3e-5,2),(9,11),(1,100),(15,1e5)]
+    bounds = [(1e-6,1),(3e-5,2),(1,100),(1,100),(15,1e5)]
     bounds0 = tuple([b[0] for b in bounds])
     bounds1 = tuple([b[1] for b in bounds])
     bounds = [bounds0,bounds1]
@@ -295,6 +295,7 @@ for band,ax in zip(bands,axs):
     ydata = curdata['flux']*1e-6
     yerr = np.sqrt(curdata['err']**2 + curdata['rms']**2)*1e-6
     marker = itertools.cycle((',', '+', '.', 'o', '*'))
+    linestyle = itertools.cycle(('-', ':', '-.', '--'))
     xline = np.geomspace(1e-2,365,num=1000)
     for freq in np.sort(np.unique(curdata['freq']))[::-1]:
        if (band=="X"):
@@ -317,10 +318,12 @@ for band,ax in zip(bands,axs):
            subyerr = np.sqrt(subcurdata['err']**2 + subcurdata['rms']**2)*1e-6
            ax.errorbar(subxdata,subydata,yerr=subyerr,fmt=' ',color='black')
            ax.scatter(subxdata,subydata,label=f'{freq} GHz',marker=next(marker),color='black')
+       nu = np.array([freq for f in xline])
+       yline = wrap_bigsbpl((xline,nu), *bigpopt)
+       ax.plot(xline,yline,alpha=0.5,color='black',ls=next(linestyle))
         
-    nu = np.array([freq for f in xline])
-    yline = wrap_bigsbpl((xline,nu), *bigpopt)
-    ax.plot(xline,yline,alpha=0.5,color='black')
+   #  yline = wrap_bigsbpl((xline,nu), *bigpopt)
+   #  ax.plot(xline,yline,alpha=0.5,color='black')
  #    trypopt = [1.8e-3, 355e-6, 9.5, 50, 400]
  #    yline = wrap_bigsbpl((xline,nu), *trypopt)
  #    ax.plot(xline,yline,alpha=0.5,color='black',label=f'tryfit',ls=':')
