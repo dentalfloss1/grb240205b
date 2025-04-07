@@ -286,9 +286,9 @@ else:
     print("d=0.2")
     bigpopt = popt
 
-fig,axs = plt.subplots(6,1,figsize=(10,25),sharex=True,sharey=True)
+fig,axs = plt.subplots(3,2,figsize=(15,15),sharex=True,sharey=True)
 
-for band,ax in zip(bands,axs):
+for band,ax in zip(bands,axs.flatten()):
     curdata = plotdata[plotdata['band']==band]
     # print(curdata)
     xdata = curdata['obsdate']
@@ -301,26 +301,26 @@ for band,ax in zip(bands,axs):
        if (band=="X"):
            subcurdata = curdata[(curdata['freq']==freq) & (curdata['obsdate'] < 1)]
            subxdata = subcurdata['obsdate']
-           subydata = subcurdata['flux']*1e-6
-           subyerr = np.sqrt(subcurdata['err']**2 + subcurdata['rms']**2)*1e-6
+           subydata = subcurdata['flux']
+           subyerr = np.sqrt(subcurdata['err']**2 + subcurdata['rms']**2)
            ax.errorbar(subxdata,subydata,yerr=subyerr,fmt=' ',color='black')
            ax.scatter(subxdata,subydata,label=f'{freq} GHz uvfit fixed position',facecolors='none',edgecolor='black')
            subcurdata = curdata[(curdata['freq']==freq) & (curdata['obsdate'] >= 1)]
            subxdata = subcurdata['obsdate']
-           subydata = subcurdata['flux']*1e-6
-           subyerr = np.sqrt(subcurdata['err']**2 + subcurdata['rms']**2)*1e-6
+           subydata = subcurdata['flux']
+           subyerr = np.sqrt(subcurdata['err']**2 + subcurdata['rms']**2)
            ax.errorbar(subxdata,subydata,yerr=subyerr,fmt=' ',color='black')
            ax.scatter(subxdata,subydata,label=f'{freq} GHz',color='black')
        else:
            subcurdata = curdata[curdata['freq']==freq]
            subxdata = subcurdata['obsdate']
-           subydata = subcurdata['flux']*1e-6
-           subyerr = np.sqrt(subcurdata['err']**2 + subcurdata['rms']**2)*1e-6
+           subydata = subcurdata['flux']
+           subyerr = np.sqrt(subcurdata['err']**2 + subcurdata['rms']**2)
            ax.errorbar(subxdata,subydata,yerr=subyerr,fmt=' ',color='black')
            ax.scatter(subxdata,subydata,label=f'{freq} GHz',marker=next(marker),color='black')
        nu = np.array([freq for f in xline])
-       yline = wrap_bigsbpl((xline,nu), *bigpopt)
-       ax.plot(xline,yline,alpha=0.5,color='black',ls=next(linestyle))
+       yline = wrap_bigsbpl((xline,nu), *bigpopt)*1e6
+       ax.plot(xline,yline,alpha=0.5,color='black',ls=next(linestyle),label=f"{freq} GHz model")
         
    #  yline = wrap_bigsbpl((xline,nu), *bigpopt)
    #  ax.plot(xline,yline,alpha=0.5,color='black')
@@ -332,9 +332,9 @@ for band,ax in zip(bands,axs):
    #  popt, pcov = curve_fit(wrap_sbpl, xdata, ydata, p0=initial_guess,bounds=bounds)
     ax.set_xscale('log')
     ax.set_yscale('log')
-    ax.set_ylabel("Flux Density (Jy)")
+    ax.set_ylabel("Flux Density ($\mu Jy$)")
     ax.set_xlim(1e-2,365)
-    ax.set_ylim(1e-5,3e-3)
+    ax.set_ylim(10,3000)
     test_theory = [1e-3, 18.5, 60.3 , 2]
     # print(test_theory)
     # ax.plot(xline,yline,color='black',alpha=0.5,ls=':',label='theory')
@@ -376,7 +376,34 @@ ax.set_xlabel("Days post-trigger")
 plt.tight_layout()
 plt.savefig("tryfit.png")
 plt.close()
-    
+fig = plt.figure()
+freq=0.81
+curdata = plotdata[plotdata['freq']==0.81]
+print("UHF data:",curdata)
+xdata = curdata['obsdate']
+ydata = curdata['rms']*3*1e-6
+plt.scatter(xdata,ydata,label=f'{freq} GHz',marker='v')
+ax = plt.gca()
+ax.set_title(f'{freq} GHz')
+ax.set_xscale('log')
+ax.set_yscale('log')
+ax.set_ylabel("UHF Band 3-$sigma$ limits (Jy)")
+ax.set_ylim(1e-5,3e-3)
+ax.axvline((datetime.datetime.now()-trigger).total_seconds()/60/60/24,ls=':',label="Today")
+# for o in np.sort(np.unique(curdata['obs'])):
+#     subdata = curdata[curdata['obs']==o]
+#     startobs = subdata['startdate'].min()
+#     endobs = subdata['stopdate'].max()
+#     plt.axvspan(startobs,endobs, alpha=0.15, color='gray')
+nu = np.array([freq for f in xline])
+yline = wrap_bigsbpl((xline,nu), *bigpopt)
+ax.plot(xline,yline,alpha=0.5,color='black',ls='-',label='Model')
+ax.set_xlabel("Days post-trigger")
+plt.legend()
+plt.tight_layout()
+plt.savefig("UHFpredictlc.png")
+plt.close()
+
 fig = plt.figure()
 freq = 9
 curdata = plotdata[plotdata['freq']==9]
