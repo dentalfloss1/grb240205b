@@ -266,7 +266,7 @@ else:
         f = theory_bigsbpl(ivar, f0, nu01, nu02, k)
         return frev + f
     initial_guess = [1e-3,5e-5, 10,10,50]
-    bounds = [(1e-6,1),(3e-5,2),(9,11),(1,100),(15,300)]
+    bounds = [(1e-6,1),(3e-5,2),(9,11),(1,100),(15,1e5)]
     bounds0 = tuple([b[0] for b in bounds])
     bounds1 = tuple([b[1] for b in bounds])
     bounds = [bounds0,bounds1]
