@@ -7,7 +7,7 @@ from astropy.modeling.powerlaws import SmoothlyBrokenPowerLaw1D as sbpl
 from scipy.optimize import curve_fit
 from scipy.stats import linregress
 import argparse
-trigger = datetime.datetime(2024, 2, 5, 22, 15, 8, 00)
+trigger = datetime.datetime(2024, 2, 5, 22, 13, 6, 00)
 
 plotdata = pd.read_csv("grbmeas.csv")
 startdate = [(datetime.datetime.strptime(d, "%Y-%m-%d %H:%M:%S.%f") - trigger).total_seconds()/3600/24 for d in plotdata['start']]
@@ -19,6 +19,7 @@ plotdata['stopdate'] = stopdate
 # plotdata = plotdata[np.isin(plotdata['freq'],[5.5,9.0])]
 parser = argparse.ArgumentParser()
 parser.add_argument("--freezeParams",action="store_true")
+parser.add_argument("--k", type=int, default=2, help="Value for k, (use 0 or 2)")
 args = parser.parse_args()
 freezeParams=args.freezeParams
 def powerlaw(t,a,k):
@@ -223,6 +224,7 @@ else:
             y2.append(res2)
         result = np.where( t<=t_break,np.array(y1),np.array(y2))
         return result
+    # Relativistic Rev. Shock
     def reverse_shock(ivar, f0, nu0_1,k):
         t, nu = ivar
         s=10
@@ -258,7 +260,7 @@ else:
         t0 = 1
         s = 10
         d = 0.2
-        k=2
+        k=args.k
         t, nu = ivar
         res = []
         frev = reverse_shock(ivar, frev, nu0rev,k)
@@ -285,6 +287,73 @@ else:
         print(text)
     print("d=0.2")
     bigpopt = popt
+    # Non-relativistic Rev. Shock
+    def nonrel_reverse_shock(ivar, f0, nu0_1,k):
+        t, nu = ivar
+        s=10
+        res = []
+        p=2
+        t0=0.05
+        nu0_2 = 100
+        nu0_3 = 1e9
+        if k==0:
+            g = ((7/2) + (3/2) )/2
+        else:
+            g = ((3/2) + (1/2) )/2
+        a1 = -(11*g+12)/(7*(2*g+1))
+        b1 = -(3*(11*g+12))/(35*(2*g+1))
+        b2 = -(3*(5*g+8))/(7*(2*g+1))
+        b3 = -(3*(5*g+8))/(7*(2*g+1))
+        for tval,nuval in zip(t,nu):
+            fnu_m = f0*(tval/t0)**a1
+            nua = nu0_1*(tval/t0)**b1
+            num = nu0_2*(tval/t0)**b2
+            nuc = nu0_3*(tval/t0)**b3
+            if nuval < nua:
+                c1 = 2 
+                c2 = 1/3
+                c3 = -(p-1)/2
+                fpk = fnu_m*(nua/num)**(1/3)
+                result = dsbpl(nuval,fpk,nua,c1,c2,num,c3,s)
+            else:
+                c1 = 1/3
+                c2 = -(p-1)/2
+                c3 = -(p-1)/2 - 0.1
+                fpk = fnu_m
+                result = dsbpl(nuval,fpk,num,c1,c2,nuc,c3,s)
+            res.append(result)
+        return np.array(res)
+    def wrap_thinbigsbpl(ivar, f0, frev, nu0rev,nu01,nu02):
+        t0 = 1
+        s = 10
+        d = 0.2
+        k=args.k
+        t, nu = ivar
+        res = []
+        frev = nonrel_reverse_shock(ivar, frev, nu0rev,k)
+        f = theory_bigsbpl(ivar, f0, nu01, nu02, k)
+        return frev + f
+    initial_guess = [1e-3,5e-5, 10,10,50]
+    bounds = [(1e-6,1),(3e-5,2),(1,100),(1,100),(15,1e5)]
+    bounds0 = tuple([b[0] for b in bounds])
+    bounds1 = tuple([b[1] for b in bounds])
+    bounds = [bounds0,bounds1]
+    curdata = plotdata
+    tdata = curdata['obsdate']
+    nudata = curdata['freq']
+    xdata = (tdata,nudata)
+    ydata = curdata['flux']*1e-6
+    yerr = np.sqrt(curdata['err']**2 + curdata['rms']**2)*1e-6
+    popt, pcov = curve_fit(wrap_thinbigsbpl, xdata, ydata, p0=initial_guess,bounds=bounds,sigma=yerr)
+    varnames = ["f0_rev","nua0_rev","nua_0","num_0"]
+    text = f"f0={popt[0]}+/-{np.absolute(pcov[0][0])**0.5}"
+    print(text)
+    for ind,var in enumerate(varnames):
+        vnum = ind+1
+        text = f" {var}={popt[vnum]}+/-{np.absolute(pcov[vnum][vnum])**0.5}"
+        print(text)
+    print("d=0.2")
+    thinpopt = popt
 
 fig,axs = plt.subplots(3,2,figsize=(15,15),sharex=True,sharey=True)
 
@@ -311,6 +380,11 @@ for band,ax in zip(bands,axs.flatten()):
            subyerr = np.sqrt(subcurdata['err']**2 + subcurdata['rms']**2)
            ax.errorbar(subxdata,subydata,yerr=subyerr,fmt=' ',color='black')
            ax.scatter(subxdata,subydata,label=f'{freq} GHz',color='black')
+           nu = np.array([freq for f in xline])
+           yline = wrap_bigsbpl((xline,nu), *bigpopt)*1e6
+           ax.plot(xline,yline,alpha=0.5,color='black',ls=next(linestyle),label=f"{freq} GHz model")
+          #  yline = wrap_thinbigsbpl((xline,nu), *thinpopt)*1e6
+          #  ax.plot(xline,yline,alpha=0.5,color='black',ls=next(linestyle),label=f"{freq} GHz model, Thin Shell")
        else:
            subcurdata = curdata[curdata['freq']==freq]
            subxdata = subcurdata['obsdate']
@@ -318,9 +392,9 @@ for band,ax in zip(bands,axs.flatten()):
            subyerr = np.sqrt(subcurdata['err']**2 + subcurdata['rms']**2)
            ax.errorbar(subxdata,subydata,yerr=subyerr,fmt=' ',color='black')
            ax.scatter(subxdata,subydata,label=f'{freq} GHz',marker=next(marker),color='black')
-       nu = np.array([freq for f in xline])
-       yline = wrap_bigsbpl((xline,nu), *bigpopt)*1e6
-       ax.plot(xline,yline,alpha=0.5,color='black',ls=next(linestyle),label=f"{freq} GHz model")
+           nu = np.array([freq for f in xline])
+           yline = wrap_bigsbpl((xline,nu), *bigpopt)*1e6
+           ax.plot(xline,yline,alpha=0.5,color='black',ls=next(linestyle),label=f"{freq} GHz model")
         
    #  yline = wrap_bigsbpl((xline,nu), *bigpopt)
    #  ax.plot(xline,yline,alpha=0.5,color='black')
@@ -373,6 +447,10 @@ for band,ax in zip(bands,axs.flatten()):
         # ax.axvspan(startobs,endobs, alpha=0.15, color='gray')
 # plt.legend()
 ax.set_xlabel("Days post-trigger")
+if args.k==2:
+    fig.suptitle(f"Stellar Wind Profile")
+elif args.k==0:
+    fig.suptitle(f"ISM Profile")
 plt.tight_layout()
 plt.savefig("tryfit.png")
 plt.close()
@@ -403,8 +481,9 @@ xline = np.geomspace(1,1e4,num=100000)
 nu = np.array([freq for f in xline])
 yline = wrap_bigsbpl((xline,nu), *bigpopt)*1e6
 limits = xline[np.round(yline,1)==np.round(obslimit,1)]
-ax.axvline(limits[0],ls='--')
-ax.axvline(limits[-1],ls='--')
+if limits.size >0:
+    ax.axvline(limits[0],ls='--')
+    ax.axvline(limits[-1],ls='--')
 ax.plot(xline,yline,alpha=0.5,color='black',ls='-',label='Model')
 ax.set_xlabel("Days post-trigger")
 plt.legend()
@@ -412,6 +491,52 @@ plt.tight_layout()
 plt.savefig("UHFpredictlc.png")
 plt.close()
 
+for freq,obslimit in [(0.8,10.5),(1.3,5),(11.85,3)]:
+   #  curdata = plotdata[plotdata['freq']==0.81]
+   #  print("UHF data:",curdata)
+   #  xdata = curdata['obsdate']
+   #  ydata = curdata['rms']*3
+   #  plt.scatter(xdata,ydata,label=f'{freq} GHz',marker='v')
+    ax = plt.gca()
+    # obslimit =ydata.to_numpy()[0] 
+    ax.set_title(f'{freq} GHz')
+    ax.set_xscale('log')
+    ax.set_yscale('log')
+    ax.set_ylabel("RMS noise ($\mu Jy/BM$)")
+    # ax.set_ylim(10,3e3)
+    xmin = 0.003
+    xmax = 1e4
+    ax.set_xlim(xmin,xmax)
+    # ax.axvline((,ls=':',label="Today")
+    # for o in np.sort(np.unique(plotdata['obs'])):
+    #     subdata = plotdata[plotdata['obs']==o]
+    #     startobs = subdata['startdate'].min()
+    #     endobs = subdata['stopdate'].max()
+    #     plt.axvspan(startobs,endobs, alpha=0.15, color='gray')
+    xline = np.geomspace(xmin,xmax,num=100000)
+    nu = np.array([freq for f in xline])
+    yline = wrap_bigsbpl((xline,nu), *bigpopt)*1e6
+    ax.axhline(obslimit,ls=':')
+    print(freq,yline.max())
+    limits = xline[np.round(yline,1)==np.round(obslimit,1)]
+    ax.set_title(f"{freq} GHz Model")
+    if limits.size>1:
+        # ax.axvline(limits[0],ls='--')
+        # ax.axvline(limits[-1],ls='--')
+        ax.set_xlabel("Days post-trigger")
+        ax.set_title(f"{freq} GHz Model\n{int(round(limits[-1]-limits[0],0))} days detectable")
+    ax.plot(xline,yline,alpha=0.5,color='black',ls='-',label='Model')
+    xdata = np.geomspace(plotdata['obsdate'].min(), 365, num=10)
+    model = wrap_bigsbpl((xdata,nu),*bigpopt)*1e6
+    ydata = 3*np.array([obslimit for x in xdata])
+    print(ydata,model)
+    plt.scatter(xdata[ydata>model],ydata[ydata>model],label=f'{freq} GHz',marker='^',color='black')
+    plt.scatter(xdata[ydata<=model],ydata[ydata<=model],label=f'{freq} GHz',marker='v',color='red')
+    ax.grid()
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(f"{freq}GHzmodellc_meas.png")
+    plt.close()
 for freq,obslimit in [(0.074,46.5),(0.2,15),(0.8,7.2),(1.3,3.45)]:
    #  curdata = plotdata[plotdata['freq']==0.81]
    #  print("UHF data:",curdata)
