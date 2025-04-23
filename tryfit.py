@@ -379,13 +379,16 @@ plt.close()
     
 fig = plt.figure()
 freq = 9
-curdata = plotdata[plotdata['freq']==9]
+curdata = plotdata[plotdata['band']=='X']
 xdata = curdata['obsdate']
 ydata = curdata['flux']*1e-6
 yerr = np.sqrt(curdata['err']**2 + curdata['rms']**2)*1e-6
 plt.scatter(xdata,ydata,label=f'{freq} GHz')
 plt.errorbar(xdata,ydata,yerr=yerr,fmt=' ')
 ax = plt.gca()
+nu = np.array([freq for f in xline])
+yline = wrap_bigsbpl((xline,nu), *bigpopt)
+ax.plot(xline,yline,alpha=0.5,color='black',ls=next(linestyle))
 ax.set_title(f'{freq} GHz')
 ax.set_xscale('log')
 ax.set_yscale('log')
@@ -398,7 +401,7 @@ for o in np.sort(np.unique(curdata['obs'])):
     plt.axvspan(startobs,endobs, alpha=0.15, color='gray')
 ax.set_xlabel("Days post-trigger")
 plt.tight_layout()
-plt.savefig("9GHzlc.png")
+plt.savefig("9GHzlc.pdf")
 plt.close()
 
 tpk = [1.4,6.3,11.0,17,23,54,75,129,160]
