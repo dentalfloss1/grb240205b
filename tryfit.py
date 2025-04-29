@@ -9,6 +9,7 @@ from scipy.stats import linregress
 import argparse
 trigger = datetime.datetime(2024, 2, 5, 22, 13, 6, 00)
 
+checkdata = pd.read_csv("checksrc.csv")
 plotdata = pd.read_csv("grbmeas.csv")
 startdate = [(datetime.datetime.strptime(d, "%Y-%m-%d %H:%M:%S.%f") - trigger).total_seconds()/3600/24 for d in plotdata['start']]
 stopdate = [(datetime.datetime.strptime(d, "%Y-%m-%d %H:%M:%S.%f") - trigger).total_seconds()/3600/24 for d in plotdata['stop']]
@@ -16,6 +17,12 @@ obsdur = [(t2-t1) for t1,t2 in zip(startdate,stopdate)]
 plotdata['obsdate'] = [t1+(dur/2) for t1,dur in zip(startdate,obsdur)]
 plotdata['startdate'] = startdate
 plotdata['stopdate'] = stopdate
+startdate = [(datetime.datetime.strptime(d, "%Y-%m-%d %H:%M:%S.%f") - trigger).total_seconds()/3600/24 for d in checkdata['start']]
+stopdate = [(datetime.datetime.strptime(d, "%Y-%m-%d %H:%M:%S.%f") - trigger).total_seconds()/3600/24 for d in checkdata['stop']]
+obsdur = [(t2-t1) for t1,t2 in zip(startdate,stopdate)]
+checkdata['obsdate'] = [t1+(dur/2) for t1,dur in zip(startdate,obsdur)]
+checkdata['startdate'] = startdate
+checkdata['stopdate'] = stopdate
 # plotdata = plotdata[np.isin(plotdata['freq'],[5.5,9.0])]
 parser = argparse.ArgumentParser()
 parser.add_argument("--freezeParams",action="store_true")
@@ -367,13 +374,13 @@ for band,ax in zip(bands,axs.flatten()):
     linestyle = itertools.cycle(('-', ':', '-.', '--'))
     xline = np.geomspace(1e-2,365,num=1000)
     for freq in np.sort(np.unique(curdata['freq']))[::-1]:
-       if (band=="X"):
+       if band in ['X']:
            subcurdata = curdata[(curdata['freq']==freq) & (curdata['obsdate'] < 1)]
            subxdata = subcurdata['obsdate']
            subydata = subcurdata['flux']
            subyerr = np.sqrt(subcurdata['err']**2 + subcurdata['rms']**2)
            ax.errorbar(subxdata,subydata,yerr=subyerr,fmt=' ',color='black')
-           ax.scatter(subxdata,subydata,label=f'{freq} GHz uvfit fixed position',facecolors='none',edgecolor='black')
+           ax.scatter(subxdata,subydata,label=f'{freq} GHz uvfit',facecolors='none',edgecolor='black')
            subcurdata = curdata[(curdata['freq']==freq) & (curdata['obsdate'] >= 1)]
            subxdata = subcurdata['obsdate']
            subydata = subcurdata['flux']
@@ -385,6 +392,9 @@ for band,ax in zip(bands,axs.flatten()):
            ax.plot(xline,yline,alpha=0.5,color='black',ls=next(linestyle),label=f"{freq} GHz model")
           #  yline = wrap_thinbigsbpl((xline,nu), *thinpopt)*1e6
           #  ax.plot(xline,yline,alpha=0.5,color='black',ls=next(linestyle),label=f"{freq} GHz model, Thin Shell")
+           subcheck = checkdata[checkdata['band']==band]
+           checkerr = np.sqrt(subcheck['err']**2 + subcheck['rms']**2)
+           ax.errorbar(subcheck['obsdate'],subcheck['flux'],yerr=checkerr,fmt=' ',color='black',marker='x', label='check source')
        else:
            subcurdata = curdata[curdata['freq']==freq]
            subxdata = subcurdata['obsdate']
@@ -392,6 +402,10 @@ for band,ax in zip(bands,axs.flatten()):
            subyerr = np.sqrt(subcurdata['err']**2 + subcurdata['rms']**2)
            ax.errorbar(subxdata,subydata,yerr=subyerr,fmt=' ',color='black')
            ax.scatter(subxdata,subydata,label=f'{freq} GHz',marker=next(marker),color='black')
+           if band=='C':
+               subcheck = checkdata[checkdata['band']==band]
+               checkerr = np.sqrt(subcheck['err']**2 + subcheck['rms']**2)
+               ax.errorbar(subcheck['obsdate'],subcheck['flux'],yerr=checkerr,fmt=' ',color='black',marker='x', label='check source')
            nu = np.array([freq for f in xline])
            yline = wrap_bigsbpl((xline,nu), *bigpopt)*1e6
            ax.plot(xline,yline,alpha=0.5,color='black',ls=next(linestyle),label=f"{freq} GHz model")
@@ -444,7 +458,7 @@ for band,ax in zip(bands,axs.flatten()):
         subdata = curdata[curdata['obs']==o]
         startobs = subdata['startdate'].min()
         endobs = subdata['stopdate'].max()
-        # ax.axvspan(startobs,endobs, alpha=0.15, color='gray')
+        ax.axvspan(startobs,endobs, alpha=0.15, color='gray')
 # plt.legend()
 ax.set_xlabel("Days post-trigger")
 if args.k==2:
