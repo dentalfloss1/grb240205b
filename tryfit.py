@@ -278,7 +278,7 @@ else:
     bounds0 = tuple([b[0] for b in bounds])
     bounds1 = tuple([b[1] for b in bounds])
     bounds = [bounds0,bounds1]
-    curdata = plotdata
+    curdata = plotdata[plotdata['band']!="X1"]
     tdata = curdata['obsdate']
     nudata = curdata['freq']
     xdata = (tdata,nudata)
@@ -345,7 +345,7 @@ else:
     bounds0 = tuple([b[0] for b in bounds])
     bounds1 = tuple([b[1] for b in bounds])
     bounds = [bounds0,bounds1]
-    curdata = plotdata
+    curdata = plotdata[plotdata['band']!="X1"]
     tdata = curdata['obsdate']
     nudata = curdata['freq']
     xdata = (tdata,nudata)
@@ -366,6 +366,8 @@ fig,axs = plt.subplots(3,2,figsize=(15,15),sharex=True,sharey=True)
 
 for band,ax in zip(bands,axs.flatten()):
     curdata = plotdata[plotdata['band']==band]
+    if band in ['X']:
+        curdata = plotdata[(plotdata['band']=="X") | (plotdata['band']=="X1")]
     # print(curdata)
     xdata = curdata['obsdate']
     ydata = curdata['flux']*1e-6
@@ -375,12 +377,18 @@ for band,ax in zip(bands,axs.flatten()):
     xline = np.geomspace(1e-2,365,num=1000)
     for freq in np.sort(np.unique(curdata['freq']))[::-1]:
        if band in ['X']:
-           subcurdata = curdata[(curdata['freq']==freq) & (curdata['obsdate'] < 1)]
+           subcurdata = curdata[(curdata['freq']==freq) & (curdata['obsdate'] < 1) & (curdata['band']=="X")]
            subxdata = subcurdata['obsdate']
            subydata = subcurdata['flux']
            subyerr = np.sqrt(subcurdata['err']**2 + subcurdata['rms']**2)
            ax.errorbar(subxdata,subydata,yerr=subyerr,fmt=' ',color='black')
            ax.scatter(subxdata,subydata,label=f'{freq} GHz uvfit',facecolors='none',edgecolor='black')
+           subcurdata = curdata[(curdata['freq']==freq) & (curdata['obsdate'] < 1) & (curdata['band']=="X1")]
+           subxdata = subcurdata['obsdate']
+           subydata = subcurdata['flux']
+           subyerr = np.sqrt(subcurdata['err']**2 + subcurdata['rms']**2)
+           ax.errorbar(subxdata,subydata,yerr=subyerr,fmt=' ',color='black',alpha=0.5)
+           ax.scatter(subxdata,subydata,label=f'{freq} GHz uvfit',marker='s',facecolors='none',edgecolor='black',alpha=0.5)
            subcurdata = curdata[(curdata['freq']==freq) & (curdata['obsdate'] >= 1)]
            subxdata = subcurdata['obsdate']
            subydata = subcurdata['flux']
@@ -468,6 +476,34 @@ elif args.k==0:
 plt.tight_layout()
 plt.savefig("tryfit.png")
 plt.close()
+
+fig = plt.figure()
+freq = 9
+curdata = plotdata[plotdata['band']=='X']
+xdata = curdata['obsdate']
+ydata = curdata['flux']*1e-6
+yerr = np.sqrt(curdata['err']**2 + curdata['rms']**2)*1e-6
+plt.scatter(xdata,ydata,label=f'{freq} GHz')
+plt.errorbar(xdata,ydata,yerr=yerr,fmt=' ')
+ax = plt.gca()
+nu = np.array([freq for f in xline])
+yline = wrap_bigsbpl((xline,nu), *bigpopt)
+ax.plot(xline,yline,alpha=0.5,color='black',ls='-')
+ax.set_title(f'{freq} GHz')
+ax.set_xscale('log')
+ax.set_yscale('log')
+ax.set_ylabel("Flux Density (Jy)")
+ax.set_ylim(1e-5,3e-3)
+for o in np.sort(np.unique(curdata['obs'])):
+    subdata = curdata[curdata['obs']==o]
+    startobs = subdata['startdate'].min()
+    endobs = subdata['stopdate'].max()
+    plt.axvspan(startobs,endobs, alpha=0.15, color='gray')
+ax.set_xlabel("Days post-trigger")
+plt.tight_layout()
+plt.savefig("9GHzlc.png")
+plt.close()
+
 fig = plt.figure()
 freq=0.81
 curdata = plotdata[plotdata['freq']==0.81]
@@ -594,32 +630,6 @@ for freq,obslimit in [(0.074,46.5),(0.2,15),(0.8,7.2),(1.3,3.45)]:
 
 
 
-fig = plt.figure()
-freq = 9
-curdata = plotdata[plotdata['band']=='X']
-xdata = curdata['obsdate']
-ydata = curdata['flux']*1e-6
-yerr = np.sqrt(curdata['err']**2 + curdata['rms']**2)*1e-6
-plt.scatter(xdata,ydata,label=f'{freq} GHz')
-plt.errorbar(xdata,ydata,yerr=yerr,fmt=' ')
-ax = plt.gca()
-nu = np.array([freq for f in xline])
-yline = wrap_bigsbpl((xline,nu), *bigpopt)
-ax.plot(xline,yline,alpha=0.5,color='black',ls=next(linestyle))
-ax.set_title(f'{freq} GHz')
-ax.set_xscale('log')
-ax.set_yscale('log')
-ax.set_ylabel("Flux Density (Jy)")
-ax.set_ylim(1e-5,3e-3)
-for o in np.sort(np.unique(curdata['obs'])):
-    subdata = curdata[curdata['obs']==o]
-    startobs = subdata['startdate'].min()
-    endobs = subdata['stopdate'].max()
-    plt.axvspan(startobs,endobs, alpha=0.15, color='gray')
-ax.set_xlabel("Days post-trigger")
-plt.tight_layout()
-plt.savefig("9GHzlc.pdf")
-plt.close()
 
 tpk = [1.4,6.3,11.0,17,23,54,75,129,160]
 nupk =[16.3,11.1,16.1,4.07,9.47,5.5,3.25,2.51,3.58]
