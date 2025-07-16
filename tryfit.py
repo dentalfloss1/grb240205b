@@ -294,6 +294,8 @@ else:
         print(text)
     print("d=0.2")
     bigpopt = popt
+    bigpcov = pcov
+    bigsigma = np.sqrt(np.diagonal(pcov))
     # Non-relativistic Rev. Shock
     def nonrel_reverse_shock(ivar, f0, nu0_1,k):
         t, nu = ivar
@@ -361,6 +363,8 @@ else:
         print(text)
     print("d=0.2")
     forwardpopt = popt
+    forwardpcov = pcov
+    forwardsigma = np.sqrt(np.diagonal(pcov))
    #  def wrap_thinbigsbpl(ivar, f0, frev, nu0rev,nu01,nu02):
    #      t0 = 1
    #      s = 10
@@ -449,8 +453,16 @@ for band,ax in zip(bands,axs.flatten()):
     nu = np.array([freq for f in xline])
     yline = wrap_bigsbpl((xline,nu), *bigpopt)*1e6
     ax.plot(xline,yline,alpha=0.5,color='black',ls=next(linestyle),label=f"{freq} GHz Forward+Reverse")
+    upper_param = np.array([bigpopt[0]+bigsigma[0],bigpopt[1]+bigsigma[1],bigpopt[2]-bigsigma[2],bigpopt[3]+bigsigma[3],bigpopt[4]+bigsigma[4]])
+    lower_param = np.array([bigpopt[0]-bigsigma[0],bigpopt[1]-bigsigma[1],bigpopt[2]+bigsigma[2],bigpopt[3]-bigsigma[3],bigpopt[4]-bigsigma[4]])
+    bound_upper = wrap_bigsbpl((xline,nu),*upper_param)*1e6
+    bound_lower = wrap_bigsbpl((xline,nu),*lower_param)*1e6
+    ax.fill_between(xline,bound_lower,bound_upper,color='black',alpha=0.15)
     yline = forwardshock((xline,nu), *forwardpopt)*1e6
     ax.plot(xline,yline,alpha=0.5,color='black',ls=next(linestyle),label=f"{freq} GHz Forward")
+    bound_upper = forwardshock((xline,nu),*(forwardpopt+forwardsigma))*1e6
+    bound_lower = forwardshock((xline,nu),*(forwardpopt-forwardsigma))*1e6
+    ax.fill_between(xline,bound_lower,bound_upper,color='black',alpha=0.15)
    #  yline = wrap_bigsbpl((xline,nu), *bigpopt)
    #  ax.plot(xline,yline,alpha=0.5,color='black')
  #    trypopt = [1.8e-3, 355e-6, 9.5, 50, 400]
