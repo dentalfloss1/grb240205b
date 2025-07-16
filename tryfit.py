@@ -330,18 +330,18 @@ else:
                 result = dsbpl(nuval,fpk,num,c1,c2,nuc,c3,s)
             res.append(result)
         return np.array(res)
-    def wrap_thinbigsbpl(ivar, f0, frev, nu0rev,nu01,nu02):
+    def forwardshock(ivar, f0,nu01,nu02):
         t0 = 1
         s = 10
         d = 0.2
         k=args.k
         t, nu = ivar
         res = []
-        frev = nonrel_reverse_shock(ivar, frev, nu0rev,k)
+        # frev = reverse_shock(ivar, frev, nu0rev,k)
         f = theory_bigsbpl(ivar, f0, nu01, nu02, k)
-        return frev + f
-    initial_guess = [1e-3,5e-5, 10,10,50]
-    bounds = [(1e-6,1),(3e-5,2),(1,100),(1,100),(15,1e5)]
+        return  f
+    initial_guess = [1e-3,10,50]
+    bounds = [(1e-6,1),(1,100),(15,1e5)]
     bounds0 = tuple([b[0] for b in bounds])
     bounds1 = tuple([b[1] for b in bounds])
     bounds = [bounds0,bounds1]
@@ -351,8 +351,8 @@ else:
     xdata = (tdata,nudata)
     ydata = curdata['flux']*1e-6
     yerr = np.sqrt(curdata['err']**2 + curdata['rms']**2)*1e-6
-    popt, pcov = curve_fit(wrap_thinbigsbpl, xdata, ydata, p0=initial_guess,bounds=bounds,sigma=yerr)
-    varnames = ["f0_rev","nua0_rev","nua_0","num_0"]
+    popt, pcov = curve_fit(forwardshock, xdata, ydata, p0=initial_guess,bounds=bounds,sigma=yerr)
+    varnames = ["nua_0","num_0"]
     text = f"f0={popt[0]}+/-{np.absolute(pcov[0][0])**0.5}"
     print(text)
     for ind,var in enumerate(varnames):
@@ -360,7 +360,38 @@ else:
         text = f" {var}={popt[vnum]}+/-{np.absolute(pcov[vnum][vnum])**0.5}"
         print(text)
     print("d=0.2")
-    thinpopt = popt
+    forwardpopt = popt
+   #  def wrap_thinbigsbpl(ivar, f0, frev, nu0rev,nu01,nu02):
+   #      t0 = 1
+   #      s = 10
+   #      d = 0.2
+   #      k=args.k
+   #      t, nu = ivar
+   #      res = []
+   #      frev = nonrel_reverse_shock(ivar, frev, nu0rev,k)
+   #      f = theory_bigsbpl(ivar, f0, nu01, nu02, k)
+   #      return frev + f
+   #  initial_guess = [1e-3,5e-5, 10,10,50]
+   #  bounds = [(1e-6,1),(3e-5,2),(1,100),(1,100),(15,1e5)]
+   #  bounds0 = tuple([b[0] for b in bounds])
+   #  bounds1 = tuple([b[1] for b in bounds])
+   #  bounds = [bounds0,bounds1]
+   #  curdata = plotdata[plotdata['band']!="X1"]
+   #  tdata = curdata['obsdate']
+   #  nudata = curdata['freq']
+   #  xdata = (tdata,nudata)
+   #  ydata = curdata['flux']*1e-6
+   #  yerr = np.sqrt(curdata['err']**2 + curdata['rms']**2)*1e-6
+   #  popt, pcov = curve_fit(wrap_thinbigsbpl, xdata, ydata, p0=initial_guess,bounds=bounds,sigma=yerr)
+   #  varnames = ["f0_rev","nua0_rev","nua_0","num_0"]
+   #  text = f"f0={popt[0]}+/-{np.absolute(pcov[0][0])**0.5}"
+   #  print(text)
+   #  for ind,var in enumerate(varnames):
+   #      vnum = ind+1
+   #      text = f" {var}={popt[vnum]}+/-{np.absolute(pcov[vnum][vnum])**0.5}"
+   #      print(text)
+   #  print("d=0.2")
+   #  thinpopt = popt
 
 fig,axs = plt.subplots(3,2,figsize=(15,15),sharex=True,sharey=True)
 
@@ -383,26 +414,24 @@ for band,ax in zip(bands,axs.flatten()):
            subyerr = np.sqrt(subcurdata['err']**2 + subcurdata['rms']**2)
            ax.errorbar(subxdata,subydata,yerr=subyerr,fmt=' ',color='black')
            ax.scatter(subxdata,subydata,label=f'{freq} GHz uvfit',facecolors='none',edgecolor='black')
-           subcurdata = curdata[(curdata['freq']==freq) & (curdata['obsdate'] < 1) & (curdata['band']=="X1")]
-           subxdata = subcurdata['obsdate']
-           subydata = subcurdata['flux']
-           subyerr = np.sqrt(subcurdata['err']**2 + subcurdata['rms']**2)
-           ax.errorbar(subxdata,subydata,yerr=subyerr,fmt=' ',color='black',alpha=0.5)
-           ax.scatter(subxdata,subydata,label=f'{freq} GHz uvfit',marker='s',facecolors='none',edgecolor='black',alpha=0.5)
+          #  subcurdata = curdata[(curdata['freq']==freq) & (curdata['obsdate'] < 1) & (curdata['band']=="X1")]
+          #  subxdata = subcurdata['obsdate']
+          #  subydata = subcurdata['flux']
+          #  subyerr = np.sqrt(subcurdata['err']**2 + subcurdata['rms']**2)
+          #  ax.errorbar(subxdata,subydata,yerr=subyerr,fmt=' ',color='black',alpha=0.5)
+          #  ax.scatter(subxdata,subydata,label=f'{freq} GHz uvfit',marker='s',facecolors='none',edgecolor='black',alpha=0.5)
            subcurdata = curdata[(curdata['freq']==freq) & (curdata['obsdate'] >= 1)]
            subxdata = subcurdata['obsdate']
            subydata = subcurdata['flux']
            subyerr = np.sqrt(subcurdata['err']**2 + subcurdata['rms']**2)
            ax.errorbar(subxdata,subydata,yerr=subyerr,fmt=' ',color='black')
            ax.scatter(subxdata,subydata,label=f'{freq} GHz',color='black')
-           nu = np.array([freq for f in xline])
-           yline = wrap_bigsbpl((xline,nu), *bigpopt)*1e6
-           ax.plot(xline,yline,alpha=0.5,color='black',ls=next(linestyle),label=f"{freq} GHz model")
+
           #  yline = wrap_thinbigsbpl((xline,nu), *thinpopt)*1e6
           #  ax.plot(xline,yline,alpha=0.5,color='black',ls=next(linestyle),label=f"{freq} GHz model, Thin Shell")
-           subcheck = checkdata[checkdata['band']==band]
-           checkerr = np.sqrt(subcheck['err']**2 + subcheck['rms']**2)
-           ax.errorbar(subcheck['obsdate'],subcheck['flux'],yerr=checkerr,fmt=' ',color='black',marker='x', label='check source')
+          #  subcheck = checkdata[checkdata['band']==band]
+          #  checkerr = np.sqrt(subcheck['err']**2 + subcheck['rms']**2)
+          #  ax.errorbar(subcheck['obsdate'],subcheck['flux'],yerr=checkerr,fmt=' ',color='black',marker='x', label='check source')
        else:
            subcurdata = curdata[curdata['freq']==freq]
            subxdata = subcurdata['obsdate']
@@ -416,8 +445,12 @@ for band,ax in zip(bands,axs.flatten()):
                ax.errorbar(subcheck['obsdate'],subcheck['flux'],yerr=checkerr,fmt=' ',color='black',marker='x', label='check source')
            nu = np.array([freq for f in xline])
            yline = wrap_bigsbpl((xline,nu), *bigpopt)*1e6
-           ax.plot(xline,yline,alpha=0.5,color='black',ls=next(linestyle),label=f"{freq} GHz model")
         
+    nu = np.array([freq for f in xline])
+    yline = wrap_bigsbpl((xline,nu), *bigpopt)*1e6
+    ax.plot(xline,yline,alpha=0.5,color='black',ls=next(linestyle),label=f"{freq} GHz Forward+Reverse")
+    yline = forwardshock((xline,nu), *forwardpopt)*1e6
+    ax.plot(xline,yline,alpha=0.5,color='black',ls=next(linestyle),label=f"{freq} GHz Forward")
    #  yline = wrap_bigsbpl((xline,nu), *bigpopt)
    #  ax.plot(xline,yline,alpha=0.5,color='black')
  #    trypopt = [1.8e-3, 355e-6, 9.5, 50, 400]
