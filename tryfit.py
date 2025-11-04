@@ -431,7 +431,7 @@ for band,ax in zip(bands,axs.flatten()):
     ax.set_ylabel("Flux Density ($\mu Jy$)")
     ax.set_xlim(1e-2,365)
     ax.set_ylim(10,3000)
-    test_theory = [1e-3, 18.5, 60.3 , 2]
+    # test_theory = [1e-3, 18.5, 60.3 , 2]
     # print(test_theory)
     # ax.plot(xline,yline,color='black',alpha=0.5,ls=':',label='theory')
     # ax.plot(xline,yline,color='black',alpha=0.5,ls='-')
@@ -439,7 +439,8 @@ for band,ax in zip(bands,axs.flatten()):
 
 #     test_theory = [1.e-3, 58 , 95 , 0]
 #     print(test_theory)
-#     t_break = get_tbreak((xline,nu),*test_theory)
+    
+    print(get_tbreak((xline,nu),bigpopt[0],bigpopt[3],bigpopt[4],args.k))
 #     ax.axvline(t_break,ls=':')
 #     yline = theory_bigsbpl((xline,nu), *test_theory)
 #     ax.plot(xline,yline,color='black',alpha=0.5,ls=':',label='ISM')
