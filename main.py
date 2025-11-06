@@ -560,7 +560,7 @@ ax.set_xscale('log')
 ax.set_yscale('log')
 ax.set_ylabel("RMS noise ($\mu Jy/BM$)")
 ax.set_ylim(10,3e3)
-ax.set_title("UHF Band 3-$\sigma$ Limits")
+ax.set_title(f"UHF Band 3-$\sigma$ Limits, k={args.k}")
 ax.set_xlim(1,1e4)
 # ax.axvline((,ls=':',label="Today")
 # for o in np.sort(np.unique(plotdata['obs'])):
