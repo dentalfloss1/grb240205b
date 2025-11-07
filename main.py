@@ -4,6 +4,7 @@ import pandas as pd
 import datetime
 import numpy as np
 import itertools
+from tqdm import tqdm
 from astropy.modeling.powerlaws import SmoothlyBrokenPowerLaw1D as sbpl
 from scipy.optimize import curve_fit
 from scipy.stats import linregress
@@ -333,39 +334,39 @@ else:
                 result = dsbpl(nuval,fpk,num,c1,c2,nuc,c3,s)
             res.append(result)
         return np.array(res)
-   #  def forwardshock(ivar, f0,nu01,nu02):
-   #      t0 = 1
-   #      s = 10
-   #      d = 0.2
-   #      k=args.k
-   #      t, nu = ivar
-   #      res = []
-   #      # frev = reverse_shock(ivar, frev, nu0rev,k)
-   #      f = theory_bigsbpl(ivar, f0, nu01, nu02, k)
-   #      return  f
-   #  initial_guess = [1e-3,10,50]
-   #  bounds = [(1e-6,1),(1,100),(15,1e5)]
-   #  bounds0 = tuple([b[0] for b in bounds])
-   #  bounds1 = tuple([b[1] for b in bounds])
-   #  bounds = [bounds0,bounds1]
-   #  curdata = plotdata[plotdata['band']!="X1"]
-   #  tdata = curdata['obsdate']
-   #  nudata = curdata['freq']
-   #  xdata = (tdata,nudata)
-   #  ydata = curdata['flux']*1e-6
-   #  yerr = np.sqrt(curdata['err']**2 + curdata['rms']**2)*1e-6
-   #  popt, pcov = curve_fit(forwardshock, xdata, ydata, p0=initial_guess,bounds=bounds,sigma=yerr)
-   #  varnames = ["nua_0","num_0"]
-   #  text = f"f0={popt[0]}+/-{np.absolute(pcov[0][0])**0.5}"
-   #  print(text)
-   #  for ind,var in enumerate(varnames):
-   #      vnum = ind+1
-   #      text = f" {var}={popt[vnum]}+/-{np.absolute(pcov[vnum][vnum])**0.5}"
-   #      print(text)
-   #  print("d=0.2")
-   #  forwardpopt = popt
-   #  forwardpcov = pcov
-   #  forwardsigma = np.sqrt(np.diagonal(pcov))
+    def forwardshock(ivar, f0,nu01,nu02):
+        t0 = 1
+        s = 10
+        d = 0.2
+        k=args.k
+        t, nu = ivar
+        res = []
+        # frev = reverse_shock(ivar, frev, nu0rev,k)
+        f = theory_bigsbpl(ivar, f0, nu01, nu02, k)
+        return  f
+    initial_guess = [1e-3,10,50]
+    bounds = [(1e-6,1),(1,100),(15,1e5)]
+    bounds0 = tuple([b[0] for b in bounds])
+    bounds1 = tuple([b[1] for b in bounds])
+    bounds = [bounds0,bounds1]
+    curdata = plotdata[plotdata['band']!="X1"]
+    tdata = curdata['obsdate']
+    nudata = curdata['freq']
+    xdata = (tdata,nudata)
+    ydata = curdata['flux']*1e-6
+    yerr = np.sqrt(curdata['err']**2 + curdata['rms']**2)*1e-6
+    popt, pcov = curve_fit(forwardshock, xdata, ydata, p0=initial_guess,bounds=bounds,sigma=yerr)
+    varnames = ["nua_0","num_0"]
+    text = f"f0={popt[0]}+/-{np.absolute(pcov[0][0])**0.5}"
+    print(text)
+    for ind,var in enumerate(varnames):
+        vnum = ind+1
+        text = f" {var}={popt[vnum]}+/-{np.absolute(pcov[vnum][vnum])**0.5}"
+        print(text)
+    print("d=0.2")
+    forwardpopt = popt
+    forwardpcov = pcov
+    forwardsigma = np.sqrt(np.diagonal(pcov))
    #  def wrap_thinbigsbpl(ivar, f0, frev, nu0rev,nu01,nu02):
    #      t0 = 1
    #      s = 10
@@ -399,15 +400,22 @@ else:
    #  thinpopt = popt
 
 fig,axs = plt.subplots(3,2,figsize=(15,15),sharex=True,sharey=True)
-def getminmax(t,freq, bigpopt, bigsigma):
-    meas = []
-    for f0try in [bigpopt[0]+bigsigma[0],bigpopt[0]-bigsigma[0]]:
-        for frevtry in [bigpopt[1]+bigsigma[1],bigpopt[1]-bigsigma[1]]:
-            for nu0revtry in [bigpopt[2]+bigsigma[2],bigpopt[2]-bigsigma[2]]:
-                for nu01try in [bigpopt[3]+bigsigma[3],bigpopt[3]-bigsigma[3]]:
-                    for nu02try in [bigpopt[4]+bigsigma[4],bigpopt[4]-bigsigma[4]]:
-                        meas.append(wrap_bigsbpl((t,freq),f0try,frevtry,nu0revtry,nu01try,nu02try))
-    return np.amin(meas), np.amax(meas)
+def getminmax(ivar, bigpopt, bigsigma):
+    minarray = []
+    maxarray = []
+    for i,tval in tqdm(enumerate(ivar[0]),total=len(ivar[0])):
+        meas = []
+        for f0try in [bigpopt[0]+bigsigma[0],bigpopt[0]-bigsigma[0]]:
+            for frevtry in [bigpopt[1]+bigsigma[1],bigpopt[1]-bigsigma[1]]:
+                for nu0revtry in [bigpopt[2]+bigsigma[2],bigpopt[2]-bigsigma[2]]:
+                    for nu01try in [bigpopt[3]+bigsigma[3],bigpopt[3]-bigsigma[3]]:
+                        for nu02try in [bigpopt[4]+bigsigma[4],bigpopt[4]-bigsigma[4]]:
+                            fully = wrap_bigsbpl(ivar,f0try,frevtry,nu0revtry,nu01try,nu02try)[i]*1e6
+                            meas.append(fully)
+        minarray.append(np.amin(meas))
+        maxarray.append(np.amax(meas))
+     
+    return np.array(minarray), np.array(maxarray)
 
 for band,ax in zip(bands,axs.flatten()):
     curdata = plotdata[plotdata['band']==band]
@@ -465,12 +473,12 @@ for band,ax in zip(bands,axs.flatten()):
     ax.plot(xline,yline,alpha=0.5,color='black',ls=next(linestyle),label=f"{freq} GHz Forward+Reverse")
     # upper_param = np.array([bigpopt[0]+bigsigma[0],bigpopt[1]+bigsigma[1],bigpopt[2]-bigsigma[2],bigpopt[3]+bigsigma[3],bigpopt[4]+bigsigma[4]])
     # lower_param = np.array([bigpopt[0]-bigsigma[0],bigpopt[1]-bigsigma[1],bigpopt[2]+bigsigma[2],bigpopt[3]-bigsigma[3],bigpopt[4]-bigsigma[4]])
-    bound_lower = np.array([getminmax(np.array([xval]),np.array([freq]),bigpopt,bigsigma)[0] for xval in xline])*1e6
-    bound_upper = np.array([getminmax(np.array([xval]),np.array([freq]),bigpopt,bigsigma)[1] for xval in xline])*1e6
+    bound_lower = getminmax((xline,nu),bigpopt,bigsigma)[0]*1e6
+    bound_upper = getminmax((xline,nu),bigpopt,bigsigma)[1]*1e6
 
     ax.fill_between(xline,bound_lower,bound_upper,color='black',alpha=0.15)
-   #  yline = forwardshock((xline,nu), *forwardpopt)*1e6
-   #  ax.plot(xline,yline,alpha=0.5,color='black',ls=next(linestyle),label=f"{freq} GHz Forward")
+    yline = forwardshock((xline,nu), *forwardpopt)*1e6
+    ax.plot(xline,yline,alpha=0.5,color='black',ls=next(linestyle),label=f"{freq} GHz Forward")
    #  bound_upper = forwardshock((xline,nu),*(forwardpopt+forwardsigma))*1e6
    #  bound_lower = forwardshock((xline,nu),*(forwardpopt-forwardsigma))*1e6
    #  ax.fill_between(xline,bound_lower,bound_upper,color='black',alpha=0.15)
