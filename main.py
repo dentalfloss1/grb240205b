@@ -410,7 +410,7 @@ def getminmax(ivar, bigpopt, bigsigma):
                 for nu0revtry in [bigpopt[2]+bigsigma[2],bigpopt[2]-bigsigma[2]]:
                     for nu01try in [bigpopt[3]+bigsigma[3],bigpopt[3]-bigsigma[3]]:
                         for nu02try in [bigpopt[4]+bigsigma[4],bigpopt[4]-bigsigma[4]]:
-                            fully = wrap_bigsbpl(ivar,f0try,frevtry,nu0revtry,nu01try,nu02try)[i]*1e6
+                            fully = wrap_bigsbpl(ivar,f0try,frevtry,nu0revtry,nu01try,nu02try)[i]
                             meas.append(fully)
         minarray.append(np.amin(meas))
         maxarray.append(np.amax(meas))
@@ -427,7 +427,7 @@ for band,ax in zip(bands,axs.flatten()):
     yerr = np.sqrt(curdata['err']**2 + curdata['rms']**2)*1e-6
     marker = itertools.cycle((',', '+', '.', 'o', '*'))
     linestyle = itertools.cycle(('-', ':', '-.', '--'))
-    xline = np.geomspace(1e-2,365,num=1000)
+    xline = np.geomspace(1e-2,365,num=100)
     for freq in np.sort(np.unique(curdata['freq']))[::-1]:
        if band in ['X']:
            subcurdata = curdata[(curdata['freq']==freq) & (curdata['obsdate'] < 1) & (curdata['band']=="X")]
