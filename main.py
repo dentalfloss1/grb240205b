@@ -248,7 +248,7 @@ if args.forwardOnly:
     bounds0 = tuple([b[0] for b in bounds])
     bounds1 = tuple([b[1] for b in bounds])
     bounds = [bounds0,bounds1]
-    curdata = plotdata[plotdata['flux'] > 0]
+    curdata = plotdata[plotdata['err'] != -1]
     tdata = curdata['obsdate']
     nudata = curdata['freq']
     xdata = (tdata,nudata)
@@ -455,12 +455,16 @@ for band,ax in zip(bands,axs.flatten()):
           #  checkerr = np.sqrt(subcheck['err']**2 + subcheck['rms']**2)
           #  ax.errorbar(subcheck['obsdate'],subcheck['flux'],yerr=checkerr,fmt=' ',color='black',marker='x', label='check source')
        else:
-           subcurdata = curdata[curdata['freq']==freq]
+           subcurdata = curdata[(curdata['freq']==freq) & (curdata['err']!=-1)]
            subxdata = subcurdata['obsdate']
            subydata = subcurdata['flux']
            subyerr = np.sqrt(subcurdata['err']**2 + subcurdata['rms']**2)
            ax.errorbar(subxdata,subydata,yerr=subyerr,fmt=' ',color='black')
            ax.scatter(subxdata,subydata,label=f'{freq} GHz',marker=next(marker),color='black')
+           limitdata = curdata[(curdata['freq']==freq) & (curdata['err']==-1)]
+           limitxdata = limitdata['obsdate']
+           limitydata = limitdata['rms']*3
+           ax.scatter(limitxdata,limitydata,marker='v',color='black',label=f"{freq} GHz 3$\sigma$ limit")
            if band=='C':
                subcheck = checkdata[checkdata['band']==band]
                checkerr = np.sqrt(subcheck['err']**2 + subcheck['rms']**2)
