@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import traceback
 import pandas as pd 
 import datetime
 import numpy as np
@@ -123,7 +124,7 @@ def theory_bigsbpl(ivar, f0, nu0_1, nu0_2, k):
     a1 = -k/(2*(4-k))
     b1 = -3*k/(5*(4-k))
     b2 = -3/2
-    p = 2
+    p = 2.3
     nu0_3 = 1e9
     t, nu = ivar
     y1 = []
@@ -199,7 +200,7 @@ def reverse_shock(ivar, f0, nu0_1,k):
     t, nu = ivar
     s=10
     res = []
-    p=2
+    p=2.3
     t0=0.05
     nu0_2 = 100
     nu0_3 = 1e9
@@ -207,24 +208,29 @@ def reverse_shock(ivar, f0, nu0_1,k):
     b1 = -(32-7*k)/(15*(4-k))
     b2 = -(73-14*k)/(12*(4-k))
     b3 = -(73-14*k)/(12*(4-k))
-    for tval,nuval in zip(t,nu):
-        fnu_m = f0*(tval/t0)**a1
-        nua = nu0_1*(tval/t0)**b1
-        num = nu0_2*(tval/t0)**b2
-        nuc = nu0_3*(tval/t0)**b3
-        if nuval < nua:
-            c1 = 2 
-            c2 = 1/3
-            c3 = -(p-1)/2
-            fpk = fnu_m*(nua/num)**(1/3)
-            result = dsbpl(nuval,fpk,nua,c1,c2,num,c3,s)
-        else:
-            c1 = 1/3
-            c2 = -(p-1)/2
-            c3 = -(p-1)/2 - 0.1
-            fpk = fnu_m
-            result = dsbpl(nuval,fpk,num,c1,c2,nuc,c3,s)
-        res.append(result)
+    try:
+        for tval,nuval in zip(t,nu):
+            fnu_m = f0*(tval/t0)**a1
+            nua = nu0_1*(tval/t0)**b1
+            num = nu0_2*(tval/t0)**b2
+            nuc = nu0_3*(tval/t0)**b3
+            if nuval < nua:
+                c1 = 2 
+                c2 = 1/3
+                c3 = -(p-1)/2
+                fpk = fnu_m*(nua/num)**(1/3)
+                result = dsbpl(nuval,fpk,nua,c1,c2,num,c3,s)
+            else:
+                c1 = 1/3
+                c2 = -(p-1)/2
+                c3 = -(p-1)/2 - 0.1
+                fpk = fnu_m
+                result = dsbpl(nuval,fpk,num,c1,c2,nuc,c3,s)
+            res.append(result)
+    except Exception as e:
+        print(traceback.format_exc())
+        print(t,nu,ivar)
+
     return np.array(res)
 if args.forwardOnly:
     def wrap_bigsbpl(ivar, f0,nu01,nu02):
@@ -290,7 +296,7 @@ else:
     print("d=0.2")
     bigpopt = popt
     bigpcov = pcov
-    bigsigma = np.sqrt(np.diagonal(pcov))
+    bigsigma = np.sqrt(np.diagonal(bigpcov))
     # Non-relativistic Rev. Shock
     def nonrel_reverse_shock(ivar, f0, nu0_1,k):
         t, nu = ivar
@@ -327,39 +333,39 @@ else:
                 result = dsbpl(nuval,fpk,num,c1,c2,nuc,c3,s)
             res.append(result)
         return np.array(res)
-    def forwardshock(ivar, f0,nu01,nu02):
-        t0 = 1
-        s = 10
-        d = 0.2
-        k=args.k
-        t, nu = ivar
-        res = []
-        # frev = reverse_shock(ivar, frev, nu0rev,k)
-        f = theory_bigsbpl(ivar, f0, nu01, nu02, k)
-        return  f
-    initial_guess = [1e-3,10,50]
-    bounds = [(1e-6,1),(1,100),(15,1e5)]
-    bounds0 = tuple([b[0] for b in bounds])
-    bounds1 = tuple([b[1] for b in bounds])
-    bounds = [bounds0,bounds1]
-    curdata = plotdata[plotdata['band']!="X1"]
-    tdata = curdata['obsdate']
-    nudata = curdata['freq']
-    xdata = (tdata,nudata)
-    ydata = curdata['flux']*1e-6
-    yerr = np.sqrt(curdata['err']**2 + curdata['rms']**2)*1e-6
-    popt, pcov = curve_fit(forwardshock, xdata, ydata, p0=initial_guess,bounds=bounds,sigma=yerr)
-    varnames = ["nua_0","num_0"]
-    text = f"f0={popt[0]}+/-{np.absolute(pcov[0][0])**0.5}"
-    print(text)
-    for ind,var in enumerate(varnames):
-        vnum = ind+1
-        text = f" {var}={popt[vnum]}+/-{np.absolute(pcov[vnum][vnum])**0.5}"
-        print(text)
-    print("d=0.2")
-    forwardpopt = popt
-    forwardpcov = pcov
-    forwardsigma = np.sqrt(np.diagonal(pcov))
+   #  def forwardshock(ivar, f0,nu01,nu02):
+   #      t0 = 1
+   #      s = 10
+   #      d = 0.2
+   #      k=args.k
+   #      t, nu = ivar
+   #      res = []
+   #      # frev = reverse_shock(ivar, frev, nu0rev,k)
+   #      f = theory_bigsbpl(ivar, f0, nu01, nu02, k)
+   #      return  f
+   #  initial_guess = [1e-3,10,50]
+   #  bounds = [(1e-6,1),(1,100),(15,1e5)]
+   #  bounds0 = tuple([b[0] for b in bounds])
+   #  bounds1 = tuple([b[1] for b in bounds])
+   #  bounds = [bounds0,bounds1]
+   #  curdata = plotdata[plotdata['band']!="X1"]
+   #  tdata = curdata['obsdate']
+   #  nudata = curdata['freq']
+   #  xdata = (tdata,nudata)
+   #  ydata = curdata['flux']*1e-6
+   #  yerr = np.sqrt(curdata['err']**2 + curdata['rms']**2)*1e-6
+   #  popt, pcov = curve_fit(forwardshock, xdata, ydata, p0=initial_guess,bounds=bounds,sigma=yerr)
+   #  varnames = ["nua_0","num_0"]
+   #  text = f"f0={popt[0]}+/-{np.absolute(pcov[0][0])**0.5}"
+   #  print(text)
+   #  for ind,var in enumerate(varnames):
+   #      vnum = ind+1
+   #      text = f" {var}={popt[vnum]}+/-{np.absolute(pcov[vnum][vnum])**0.5}"
+   #      print(text)
+   #  print("d=0.2")
+   #  forwardpopt = popt
+   #  forwardpcov = pcov
+   #  forwardsigma = np.sqrt(np.diagonal(pcov))
    #  def wrap_thinbigsbpl(ivar, f0, frev, nu0rev,nu01,nu02):
    #      t0 = 1
    #      s = 10
@@ -393,6 +399,15 @@ else:
    #  thinpopt = popt
 
 fig,axs = plt.subplots(3,2,figsize=(15,15),sharex=True,sharey=True)
+def getminmax(t,freq, bigpopt, bigsigma):
+    meas = []
+    for f0try in [bigpopt[0]+bigsigma[0],bigpopt[0]-bigsigma[0]]:
+        for frevtry in [bigpopt[1]+bigsigma[1],bigpopt[1]-bigsigma[1]]:
+            for nu0revtry in [bigpopt[2]+bigsigma[2],bigpopt[2]-bigsigma[2]]:
+                for nu01try in [bigpopt[3]+bigsigma[3],bigpopt[3]-bigsigma[3]]:
+                    for nu02try in [bigpopt[4]+bigsigma[4],bigpopt[4]-bigsigma[4]]:
+                        meas.append(wrap_bigsbpl((t,freq),f0try,frevtry,nu0revtry,nu01try,nu02try))
+    return np.amin(meas), np.amax(meas)
 
 for band,ax in zip(bands,axs.flatten()):
     curdata = plotdata[plotdata['band']==band]
@@ -448,16 +463,17 @@ for band,ax in zip(bands,axs.flatten()):
     nu = np.array([freq for f in xline])
     yline = wrap_bigsbpl((xline,nu), *bigpopt)*1e6
     ax.plot(xline,yline,alpha=0.5,color='black',ls=next(linestyle),label=f"{freq} GHz Forward+Reverse")
-    upper_param = np.array([bigpopt[0]+bigsigma[0],bigpopt[1]+bigsigma[1],bigpopt[2]-bigsigma[2],bigpopt[3]+bigsigma[3],bigpopt[4]+bigsigma[4]])
-    lower_param = np.array([bigpopt[0]-bigsigma[0],bigpopt[1]-bigsigma[1],bigpopt[2]+bigsigma[2],bigpopt[3]-bigsigma[3],bigpopt[4]-bigsigma[4]])
-    bound_upper = wrap_bigsbpl((xline,nu),*upper_param)*1e6
-    bound_lower = wrap_bigsbpl((xline,nu),*lower_param)*1e6
+    # upper_param = np.array([bigpopt[0]+bigsigma[0],bigpopt[1]+bigsigma[1],bigpopt[2]-bigsigma[2],bigpopt[3]+bigsigma[3],bigpopt[4]+bigsigma[4]])
+    # lower_param = np.array([bigpopt[0]-bigsigma[0],bigpopt[1]-bigsigma[1],bigpopt[2]+bigsigma[2],bigpopt[3]-bigsigma[3],bigpopt[4]-bigsigma[4]])
+    bound_lower = np.array([getminmax(np.array([xval]),np.array([freq]),bigpopt,bigsigma)[0] for xval in xline])*1e6
+    bound_upper = np.array([getminmax(np.array([xval]),np.array([freq]),bigpopt,bigsigma)[1] for xval in xline])*1e6
+
     ax.fill_between(xline,bound_lower,bound_upper,color='black',alpha=0.15)
-    yline = forwardshock((xline,nu), *forwardpopt)*1e6
-    ax.plot(xline,yline,alpha=0.5,color='black',ls=next(linestyle),label=f"{freq} GHz Forward")
-    bound_upper = forwardshock((xline,nu),*(forwardpopt+forwardsigma))*1e6
-    bound_lower = forwardshock((xline,nu),*(forwardpopt-forwardsigma))*1e6
-    ax.fill_between(xline,bound_lower,bound_upper,color='black',alpha=0.15)
+   #  yline = forwardshock((xline,nu), *forwardpopt)*1e6
+   #  ax.plot(xline,yline,alpha=0.5,color='black',ls=next(linestyle),label=f"{freq} GHz Forward")
+   #  bound_upper = forwardshock((xline,nu),*(forwardpopt+forwardsigma))*1e6
+   #  bound_lower = forwardshock((xline,nu),*(forwardpopt-forwardsigma))*1e6
+   #  ax.fill_between(xline,bound_lower,bound_upper,color='black',alpha=0.15)
    #  yline = wrap_bigsbpl((xline,nu), *bigpopt)
    #  ax.plot(xline,yline,alpha=0.5,color='black')
  #    trypopt = [1.8e-3, 355e-6, 9.5, 50, 400]
