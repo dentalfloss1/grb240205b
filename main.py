@@ -28,6 +28,7 @@ checkdata['stopdate'] = stopdate
 # plotdata = plotdata[np.isin(plotdata['freq'],[5.5,9.0])]
 parser = argparse.ArgumentParser()
 parser.add_argument("--forwardOnly",action="store_true")
+parser.add_argument("--noerrors",action="store_true")
 parser.add_argument("--k", type=int, default=2, help="Value for k, (use 0 or 2)")
 args = parser.parse_args()
 def powerlaw(t,a,k):
@@ -464,7 +465,8 @@ for band,ax in zip(bands,axs.flatten()):
            limitdata = curdata[(curdata['freq']==freq) & (curdata['err']==-1)]
            limitxdata = limitdata['obsdate']
            limitydata = limitdata['rms']*3
-           ax.scatter(limitxdata,limitydata,marker='v',color='black',label=f"{freq} GHz 3$\sigma$ limit")
+           if limitdata.size >0:
+               ax.scatter(limitxdata,limitydata,marker='v',color='black',label=f"{freq} GHz 3$\sigma$ limit")
            if band=='C':
                subcheck = checkdata[checkdata['band']==band]
                checkerr = np.sqrt(subcheck['err']**2 + subcheck['rms']**2)
@@ -477,10 +479,11 @@ for band,ax in zip(bands,axs.flatten()):
     ax.plot(xline,yline,alpha=0.5,color='black',ls=next(linestyle),label=f"{freq} GHz Forward+Reverse")
     # upper_param = np.array([bigpopt[0]+bigsigma[0],bigpopt[1]+bigsigma[1],bigpopt[2]-bigsigma[2],bigpopt[3]+bigsigma[3],bigpopt[4]+bigsigma[4]])
     # lower_param = np.array([bigpopt[0]-bigsigma[0],bigpopt[1]-bigsigma[1],bigpopt[2]+bigsigma[2],bigpopt[3]-bigsigma[3],bigpopt[4]-bigsigma[4]])
-    bound_lower = getminmax((xline,nu),bigpopt,bigsigma)[0]*1e6
-    bound_upper = getminmax((xline,nu),bigpopt,bigsigma)[1]*1e6
+    if not args.noerrors:
+        bound_lower = getminmax((xline,nu),bigpopt,bigsigma)[0]*1e6
+        bound_upper = getminmax((xline,nu),bigpopt,bigsigma)[1]*1e6
 
-    ax.fill_between(xline,bound_lower,bound_upper,color='black',alpha=0.15)
+        ax.fill_between(xline,bound_lower,bound_upper,color='black',alpha=0.15)
     yline = forwardshock((xline,nu), *forwardpopt)*1e6
     ax.plot(xline,yline,alpha=0.5,color='black',ls=next(linestyle),label=f"{freq} GHz Forward")
    #  bound_upper = forwardshock((xline,nu),*(forwardpopt+forwardsigma))*1e6
@@ -550,26 +553,40 @@ fig = plt.figure()
 freq = 9
 curdata = plotdata[plotdata['band']=='X']
 xdata = curdata['obsdate']
-ydata = curdata['flux']*1e-6
-yerr = np.sqrt(curdata['err']**2 + curdata['rms']**2)*1e-6
-plt.scatter(xdata,ydata,label=f'{freq} GHz')
-plt.errorbar(xdata,ydata,yerr=yerr,fmt=' ')
+ydata = curdata['flux']
+print(xdata,ydata)
+yerr = np.sqrt(curdata['err']**2 + curdata['rms']**2)
+# plt.scatter(xdata,ydata,label=f'{freq} GHz')
+plt.errorbar(xdata,ydata,yerr=yerr,ls="none",marker='o',label=f'{freq} GHz')
+xline = np.linspace(1e-3,400,1000)
+plt.plot(xline,[20 for x in xline],ls='-',label="SKA 3$\sigma$, 10 minutes",color='black',alpha=0.5)
+plt.plot(xline,[6 for x in xline],ls='--',label="SKA 3$\sigma$, 1 minute",color='black',alpha=0.5)
+# ax.axhline("20",label="SKA 3$\sigma$, 1 minute")
+# ax.axhline("6",label="SKA 3$\sigma$, 10 minutes",ls="--")
+# plt.errorbar(tdata,fdata,yerr=ferrdata,ls='none',marker='o',color='black')
+# plt.minorticks_on()
 ax = plt.gca()
-nu = np.array([freq for f in xline])
-yline = wrap_bigsbpl((xline,nu), *bigpopt)
-ax.plot(xline,yline,alpha=0.5,color='black',ls='-')
-ax.set_title(f'{freq} GHz')
+# 
+# # ax.tick_params(axis="x",which="minor",bottom=False)
+# nu = np.array([freq for f in xline])
+# # yline = wrap_bigsbpl((xline,nu), *bigpopt)
+# # ax.plot(xline,yline,alpha=0.5,color='black',ls='-')
+ax.set_title(f'GRB 240205B {freq} GHz Light Curve')
 ax.set_xscale('log')
 ax.set_yscale('log')
-ax.set_ylabel("Flux Density (Jy)")
-ax.set_ylim(1e-5,3e-3)
-for o in np.sort(np.unique(curdata['obs'])):
-    subdata = curdata[curdata['obs']==o]
-    startobs = subdata['startdate'].min()
-    endobs = subdata['stopdate'].max()
-    plt.axvspan(startobs,endobs, alpha=0.15, color='gray')
+ax.set_ylabel("Flux Density ($\mu$Jy)")
+ax.set_ylim(1,3000)
+ax.set_xlim(1e-2,365)
+# # for o in np.sort(np.unique(curdata['obs'])):
+# #     subdata = curdata[curdata['obs']==o]
+# #     startobs = subdata['startdate'].min()
+# #     endobs = subdata['stopdate'].max()
+# #     plt.axvspan(startobs,endobs, alpha=0.15, color='gray')
 ax.set_xlabel("Days post-trigger")
-plt.tight_layout()
+# ax.axhline("20",label="SKA 3$\sigma$, 1 minute")
+# ax.axhline("6",label="SKA 3$\sigma$, 10 minutes",ls="--")
+# plt.tight_layout()
+plt.legend()
 plt.savefig("9GHzlc.png")
 plt.close()
 
