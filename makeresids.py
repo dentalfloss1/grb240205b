@@ -428,7 +428,7 @@ for band,ax in zip(bands,axs.flatten()):
         yforward = np.array(yforward)
         subydata = subcurdata['flux']
         subyerr = np.sqrt(subcurdata['err']**2 + subcurdata['rms']**2)
-        ax.scatter(subxdata,(subydata-yforward)/subydata,label=f'{freq} GHz',marker=next(marker),color='black')
+        ax.scatter(subxdata,(subydata-yforward),label=f'{freq} GHz',marker=next(marker),color='black')
         # axt = ax.twinx()
         # axt.plot(xline,yline)
         limitdata = curdata[(curdata['freq']==freq) & (curdata['err']==-1)]
@@ -439,7 +439,7 @@ for band,ax in zip(bands,axs.flatten()):
         
 
     ax.set_xscale('log')
-    # ax.set_yscale('symlog')
+    ax.set_yscale('symlog')
     # ax.set_ylim(-1,1)
     ax.set_ylabel("Residual Flux Density ($\mu Jy$)")
     ax.set_xlim(1e-2,365)
