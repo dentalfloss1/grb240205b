@@ -198,13 +198,13 @@ def theory_bigsbpl(ivar, f0, nu0_1, nu0_2, k):
     result = np.where( t<=t_break,np.array(y1),np.array(y2))
     return result
 # Relativistic Rev. Shock
-def reverse_shock(ivar, f0, nu0_1,k):
+def reverse_shock(ivar, f0, nu0_1, nu0_2, k):
     t, nu = ivar
     s=10
     res = []
     p=2.3
     t0=0.05
-    nu0_2 = 100
+    # nu0_2 = 1
     nu0_3 = 1e9
     a1 = -(47-10*k)/(12*(4-k))
     b1 = -(32-7*k)/(15*(4-k))
@@ -266,18 +266,18 @@ if args.forwardOnly:
     print("d=0.2")
     bigpopt = popt
 else:
-    def wrap_bigsbpl(ivar, f0, frev, nu0rev,nu01,nu02):
+    def wrap_bigsbpl(ivar, f0, frev, nu01rev, nu02rev,nu01,nu02):
         t0 = 1
         s = 10
         d = 0.2
         k=args.k
         t, nu = ivar
         res = []
-        frev = reverse_shock(ivar, frev, nu0rev,k)
+        frev = reverse_shock(ivar, frev, nu01rev,nu02rev,k)
         f = theory_bigsbpl(ivar, f0, nu01, nu02, k)
         return frev + f
-    initial_guess = [1e-3,5e-5, 10,10,50]
-    bounds = [(1e-6,1),(3e-5,2),(1,100),(1,100),(15,1e5)]
+    initial_guess = [1e-3,5e-5, 10,100,10,50]
+    bounds = [(1e-6,1),(3e-5,2),(1,100),(20,1e5),(1,100),(15,1e5)]
     bounds0 = tuple([b[0] for b in bounds])
     bounds1 = tuple([b[1] for b in bounds])
     bounds = [bounds0,bounds1]
@@ -288,7 +288,7 @@ else:
     ydata = curdata['flux']*1e-6
     yerr = np.sqrt(curdata['err']**2 + curdata['rms']**2)*1e-6
     popt, pcov = curve_fit(wrap_bigsbpl, xdata, ydata, p0=initial_guess,bounds=bounds,sigma=yerr)
-    varnames = ["f0_rev","nua0_rev","nua_0","num_0"]
+    varnames = ["f0_rev","nua0_rev","num0_rev","nua_0","num_0"]
     text = f"f0={popt[0]}+/-{np.absolute(pcov[0][0])**0.5}"
     print(text)
     for ind,var in enumerate(varnames):
@@ -408,11 +408,12 @@ def getminmax(ivar, bigpopt, bigsigma):
         meas = []
         for f0try in [bigpopt[0]+bigsigma[0],bigpopt[0]-bigsigma[0]]:
             for frevtry in [bigpopt[1]+bigsigma[1],bigpopt[1]-bigsigma[1]]:
-                for nu0revtry in [bigpopt[2]+bigsigma[2],bigpopt[2]-bigsigma[2]]:
-                    for nu01try in [bigpopt[3]+bigsigma[3],bigpopt[3]-bigsigma[3]]:
-                        for nu02try in [bigpopt[4]+bigsigma[4],bigpopt[4]-bigsigma[4]]:
-                            fully = wrap_bigsbpl(ivar,f0try,frevtry,nu0revtry,nu01try,nu02try)[i]
-                            meas.append(fully)
+                for nu01revtry in [bigpopt[2]+bigsigma[2],bigpopt[2]-bigsigma[2]]:
+                    for nu02revtry in [bigpopt[2]+bigsigma[2],bigpopt[2]-bigsigma[2]]:
+                        for nu01try in [bigpopt[3]+bigsigma[3],bigpopt[3]-bigsigma[3]]:
+                            for nu02try in [bigpopt[4]+bigsigma[4],bigpopt[4]-bigsigma[4]]:
+                                fully = wrap_bigsbpl(ivar,f0try,frevtry,nu01revtry,nu02revtry,nu01try,nu02try)[i]
+                                meas.append(fully)
         minarray.append(np.amin(meas))
         maxarray.append(np.amax(meas))
      
