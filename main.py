@@ -198,18 +198,19 @@ def theory_bigsbpl(ivar, f0, nu0_1, nu0_2, k):
     result = np.where( t<=t_break,np.array(y1),np.array(y2))
     return result
 # Relativistic Rev. Shock
-def reverse_shock(ivar, f0, nu0_1, nu0_2, k):
+def reverse_shock(ivar, f0, nu0_1,k,givenuvals=False):
     t, nu = ivar
     s=10
     res = []
     p=2.3
     t0=0.05
-    # nu0_2 = 1
+    nu0_2 = 1e8
     nu0_3 = 1e9
     a1 = -(47-10*k)/(12*(4-k))
     b1 = -(32-7*k)/(15*(4-k))
     b2 = -(73-14*k)/(12*(4-k))
     b3 = -(73-14*k)/(12*(4-k))
+    nuvals = []
     try:
         for tval,nuval in zip(t,nu):
             fnu_m = f0*(tval/t0)**a1
@@ -229,11 +230,15 @@ def reverse_shock(ivar, f0, nu0_1, nu0_2, k):
                 fpk = fnu_m
                 result = dsbpl(nuval,fpk,num,c1,c2,nuc,c3,s)
             res.append(result)
+            if givenuvals:
+                nuvals.append((tval,nua,num,nuc))
     except Exception as e:
         print(traceback.format_exc())
         print(t,nu,ivar)
-
-    return np.array(res)
+    if givenuvals:
+        return np.array(res),np.array(nuvals) 
+    else:
+        return np.array(res)
 if args.forwardOnly:
     def wrap_bigsbpl(ivar, f0,nu01,nu02):
         t0 = 1
@@ -266,14 +271,14 @@ if args.forwardOnly:
     print("d=0.2")
     bigpopt = popt
 else:
-    def wrap_bigsbpl(ivar, f0, frev, nu01rev, nu02rev,nu01,nu02):
+    def wrap_bigsbpl(ivar, f0, frev, nu01rev,nu01,nu02):
         t0 = 1
         s = 10
         d = 0.2
         k=args.k
         t, nu = ivar
         res = []
-        frev = reverse_shock(ivar, frev, nu01rev,nu02rev,k)
+        frev = reverse_shock(ivar, frev, nu01rev,k)
         f = theory_bigsbpl(ivar, f0, nu01, nu02, k)
         return frev + f
     initial_guess = [1e-3,5e-5, 10,100,10,50]
@@ -299,6 +304,8 @@ else:
     bigpopt = popt
     bigpcov = pcov
     bigsigma = np.sqrt(np.diagonal(bigpcov))
+    
+
     # Non-relativistic Rev. Shock
     def nonrel_reverse_shock(ivar, f0, nu0_1,k):
         t, nu = ivar
@@ -368,6 +375,33 @@ else:
     forwardpopt = popt
     forwardpcov = pcov
     forwardsigma = np.sqrt(np.diagonal(pcov))
+
+
+    xbanddata = curdata[curdata['freq']==9]
+    xline = np.geomspace(1e-6,1,num=1_000_000)
+    nu = np.array([9 for f in xline])
+    yline,nuvals = reverse_shock((xline,nu), bigpopt[1], bigpopt[2],2, givenuvals=True)
+    fig = plt.figure()
+    plt.plot(xline,yline*1e-6,label="reverse",ls='-',color='black')
+    yline = forwardshock((xline,nu), bigpopt[0], bigpopt[3], bigpopt[4])
+    plt.plot(xline,yline*1e-6,label="forward",ls=':',color='black')
+    ax = plt.gca()
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    # ax.set_ylim(1e-8,1e-3)
+    plt.legend()
+    plt.savefig("veryearly.png")
+    plt.close()
+    fig = plt.figure()
+    plt.plot(nuvals[:,0],nuvals[:,1],label='nua',ls='-',color='black')
+    plt.plot(nuvals[:,0],nuvals[:,2],label='num',ls=':',color='black')
+    plt.plot(nuvals[:,0],nuvals[:,2],label='nuc',ls='--',color='black')
+    ax = plt.gca()
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    plt.legend()
+    plt.savefig("revnuevol.png")
+    plt.close()
    #  def wrap_thinbigsbpl(ivar, f0, frev, nu0rev,nu01,nu02):
    #      t0 = 1
    #      s = 10
@@ -409,11 +443,10 @@ def getminmax(ivar, bigpopt, bigsigma):
         for f0try in [bigpopt[0]+bigsigma[0],bigpopt[0]-bigsigma[0]]:
             for frevtry in [bigpopt[1]+bigsigma[1],bigpopt[1]-bigsigma[1]]:
                 for nu01revtry in [bigpopt[2]+bigsigma[2],bigpopt[2]-bigsigma[2]]:
-                    for nu02revtry in [bigpopt[2]+bigsigma[2],bigpopt[2]-bigsigma[2]]:
-                        for nu01try in [bigpopt[3]+bigsigma[3],bigpopt[3]-bigsigma[3]]:
-                            for nu02try in [bigpopt[4]+bigsigma[4],bigpopt[4]-bigsigma[4]]:
-                                fully = wrap_bigsbpl(ivar,f0try,frevtry,nu01revtry,nu02revtry,nu01try,nu02try)[i]
-                                meas.append(fully)
+                    for nu01try in [bigpopt[3]+bigsigma[3],bigpopt[3]-bigsigma[3]]:
+                        for nu02try in [bigpopt[4]+bigsigma[4],bigpopt[4]-bigsigma[4]]:
+                            fully = wrap_bigsbpl(ivar,f0try,frevtry,nu01revtry,nu01try,nu02try)[i]
+                            meas.append(fully)
         minarray.append(np.amin(meas))
         maxarray.append(np.amax(meas))
      
@@ -558,31 +591,32 @@ ydata = curdata['flux']
 print(xdata,ydata)
 yerr = np.sqrt(curdata['err']**2 + curdata['rms']**2)
 # plt.scatter(xdata,ydata,label=f'{freq} GHz')
-plt.errorbar(xdata,ydata,yerr=yerr,ls="none",marker='o',label=f'{freq} GHz')
-xline = np.linspace(1e-3,400,1000)
-plt.plot(xline,[20 for x in xline],ls='-',label="SKA 3$\sigma$, 10 minutes",color='black',alpha=0.5)
-plt.plot(xline,[6 for x in xline],ls='--',label="SKA 3$\sigma$, 1 minute",color='black',alpha=0.5)
+plt.errorbar(xdata,ydata*1e-6,yerr=yerr*1e-6,ls="none",marker='o',label=f'{freq} GHz')
+# xline = np.linspace(1e-3,400,1000)
+# plt.plot(xline,[20e-6 for x in xline],ls='-',label="SKA 3$\sigma$, 10 minutes",color='black',alpha=0.5)
+# plt.plot(xline,[6e-6 for x in xline],ls='--',label="SKA 3$\sigma$, 1 minute",color='black',alpha=0.5)
 # ax.axhline("20",label="SKA 3$\sigma$, 1 minute")
 # ax.axhline("6",label="SKA 3$\sigma$, 10 minutes",ls="--")
 # plt.errorbar(tdata,fdata,yerr=ferrdata,ls='none',marker='o',color='black')
 # plt.minorticks_on()
 ax = plt.gca()
 # 
-# # ax.tick_params(axis="x",which="minor",bottom=False)
-# nu = np.array([freq for f in xline])
-# # yline = wrap_bigsbpl((xline,nu), *bigpopt)
-# # ax.plot(xline,yline,alpha=0.5,color='black',ls='-')
+# ax.tick_params(axis="x",which="minor",bottom=False)
+xline = np.geomspace(xdata.min(),xdata.max(),100000)
+nu = np.array([freq for f in xline])
+yline = wrap_bigsbpl((xline,nu), *bigpopt)
+ax.plot(xline,yline,alpha=0.5,color='black',ls='-')
 ax.set_title(f'GRB 240205B {freq} GHz Light Curve')
 ax.set_xscale('log')
 ax.set_yscale('log')
-ax.set_ylabel("Flux Density ($\mu$Jy)")
-ax.set_ylim(1,3000)
+ax.set_ylabel("Flux Density (Jy)")
+# ax.set_ylim(1e-6,3000e-6)
 ax.set_xlim(1e-2,365)
-# # for o in np.sort(np.unique(curdata['obs'])):
-# #     subdata = curdata[curdata['obs']==o]
-# #     startobs = subdata['startdate'].min()
-# #     endobs = subdata['stopdate'].max()
-# #     plt.axvspan(startobs,endobs, alpha=0.15, color='gray')
+for o in np.sort(np.unique(curdata['obs'])):
+    subdata = curdata[curdata['obs']==o]
+    startobs = subdata['startdate'].min()
+    endobs = subdata['stopdate'].max()
+    plt.axvspan(startobs,endobs, alpha=0.15, color='gray')
 ax.set_xlabel("Days post-trigger")
 # ax.axhline("20",label="SKA 3$\sigma$, 1 minute")
 # ax.axhline("6",label="SKA 3$\sigma$, 10 minutes",ls="--")
