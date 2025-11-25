@@ -148,7 +148,9 @@ def theory_bigsbpl(ivar, f0, nu0_1, nu0_2, k):
         nua_1 = nu0_1*(tval/t0)**b1_1
         num_1 = nu0_2*(tval/t0)**b2_1
         nuc_1 = nu0_3*(tval/t0)**b3_1
-        if nuval < nua_1:
+        if nuval > nuc_1:
+            raise Exception("Not suitable for handling the cooling break. Needs further development")
+        if True: #nuval < nua_1:
             c1_1 = 2
             c2_1 = 1/3
             c3_1 = -(p-1)/2
@@ -156,7 +158,8 @@ def theory_bigsbpl(ivar, f0, nu0_1, nu0_2, k):
             fpk_1 = fnu_m1*(nua_1/num_1)**(1/3)
             nubreak1_1 = nua_1
             nubreak2_1 = num_1
-        else:
+        else: # Needs to work in order for the cooling break to be incorporated. In particular, there are issues with smoothly breaking between these regimes.
+             # Maybe a triple broken powerlaw would solve this?
             fnu_m1 = f0*(tval/t0)**a1
             c1_1 = 1/3
             c2_1 = -(p-1)/2
@@ -198,13 +201,12 @@ def theory_bigsbpl(ivar, f0, nu0_1, nu0_2, k):
     result = np.where( t<=t_break,np.array(y1),np.array(y2))
     return result
 # Relativistic Rev. Shock
-def reverse_shock(ivar, f0, nu0_1,k,givenuvals=False):
+def reverse_shock(ivar, f0, nu0_1,nu0_2, k,givenuvals=False):
     t, nu = ivar
     s=10
     res = []
     p=2.3
     t0=0.05
-    nu0_2 = 1e8
     nu0_3 = 1e9
     a1 = -(47-10*k)/(12*(4-k))
     b1 = -(32-7*k)/(15*(4-k))
@@ -217,7 +219,7 @@ def reverse_shock(ivar, f0, nu0_1,k,givenuvals=False):
             nua = nu0_1*(tval/t0)**b1
             num = nu0_2*(tval/t0)**b2
             nuc = nu0_3*(tval/t0)**b3
-            if nuval < nua:
+            if True: #nuval < nua:
                 c1 = 2 
                 c2 = 1/3
                 c3 = -(p-1)/2
@@ -271,18 +273,18 @@ if args.forwardOnly:
     print("d=0.2")
     bigpopt = popt
 else:
-    def wrap_bigsbpl(ivar, f0, frev, nu01rev,nu01,nu02):
+    def wrap_bigsbpl(ivar, f0, frev, nu01rev, nu02rev ,nu01,nu02):
         t0 = 1
         s = 10
         d = 0.2
         k=args.k
         t, nu = ivar
         res = []
-        frev = reverse_shock(ivar, frev, nu01rev,k)
+        frev = reverse_shock(ivar, frev, nu01rev, nu02rev ,k)
         f = theory_bigsbpl(ivar, f0, nu01, nu02, k)
         return frev + f
     initial_guess = [1e-3,5e-5, 10,100,10,50]
-    bounds = [(1e-6,1),(3e-5,2),(1,100),(20,1e5),(1,100),(15,1e5)]
+    bounds = [(1e-6,1),(3e-5,1e-3),(0.1,100),(50,1000),(1,100),(15,1e5)]
     bounds0 = tuple([b[0] for b in bounds])
     bounds1 = tuple([b[1] for b in bounds])
     bounds = [bounds0,bounds1]
@@ -377,31 +379,6 @@ else:
     forwardsigma = np.sqrt(np.diagonal(pcov))
 
 
-    xbanddata = curdata[curdata['freq']==9]
-    xline = np.geomspace(1e-6,1,num=1_000_000)
-    nu = np.array([9 for f in xline])
-    yline,nuvals = reverse_shock((xline,nu), bigpopt[1], bigpopt[2],2, givenuvals=True)
-    fig = plt.figure()
-    plt.plot(xline,yline*1e-6,label="reverse",ls='-',color='black')
-    yline = forwardshock((xline,nu), bigpopt[0], bigpopt[3], bigpopt[4])
-    plt.plot(xline,yline*1e-6,label="forward",ls=':',color='black')
-    ax = plt.gca()
-    ax.set_xscale("log")
-    ax.set_yscale("log")
-    # ax.set_ylim(1e-8,1e-3)
-    plt.legend()
-    plt.savefig("veryearly.png")
-    plt.close()
-    fig = plt.figure()
-    plt.plot(nuvals[:,0],nuvals[:,1],label='nua',ls='-',color='black')
-    plt.plot(nuvals[:,0],nuvals[:,2],label='num',ls=':',color='black')
-    plt.plot(nuvals[:,0],nuvals[:,2],label='nuc',ls='--',color='black')
-    ax = plt.gca()
-    ax.set_xscale("log")
-    ax.set_yscale("log")
-    plt.legend()
-    plt.savefig("revnuevol.png")
-    plt.close()
    #  def wrap_thinbigsbpl(ivar, f0, frev, nu0rev,nu01,nu02):
    #      t0 = 1
    #      s = 10
@@ -443,10 +420,11 @@ def getminmax(ivar, bigpopt, bigsigma):
         for f0try in [bigpopt[0]+bigsigma[0],bigpopt[0]-bigsigma[0]]:
             for frevtry in [bigpopt[1]+bigsigma[1],bigpopt[1]-bigsigma[1]]:
                 for nu01revtry in [bigpopt[2]+bigsigma[2],bigpopt[2]-bigsigma[2]]:
-                    for nu01try in [bigpopt[3]+bigsigma[3],bigpopt[3]-bigsigma[3]]:
-                        for nu02try in [bigpopt[4]+bigsigma[4],bigpopt[4]-bigsigma[4]]:
-                            fully = wrap_bigsbpl(ivar,f0try,frevtry,nu01revtry,nu01try,nu02try)[i]
-                            meas.append(fully)
+                    for nu02revtry in [bigpopt[3]+bigsigma[3],bigpopt[3]-bigsigma[3]]:
+                        for nu01try in [bigpopt[4]+bigsigma[4],bigpopt[4]-bigsigma[4]]:
+                            for nu02try in [bigpopt[5]+bigsigma[5],bigpopt[5]-bigsigma[5]]:
+                                fully = wrap_bigsbpl(ivar,f0try,frevtry,nu01revtry,nu02revtry,nu01try,nu02try)[i]
+                                meas.append(fully)
         minarray.append(np.amin(meas))
         maxarray.append(np.amax(meas))
      
@@ -592,13 +570,13 @@ print(xdata,ydata)
 yerr = np.sqrt(curdata['err']**2 + curdata['rms']**2)
 # plt.scatter(xdata,ydata,label=f'{freq} GHz')
 plt.errorbar(xdata,ydata*1e-6,yerr=yerr*1e-6,ls="none",marker='o',label=f'{freq} GHz')
-# xline = np.linspace(1e-3,400,1000)
-# plt.plot(xline,[20e-6 for x in xline],ls='-',label="SKA 3$\sigma$, 10 minutes",color='black',alpha=0.5)
-# plt.plot(xline,[6e-6 for x in xline],ls='--',label="SKA 3$\sigma$, 1 minute",color='black',alpha=0.5)
-# ax.axhline("20",label="SKA 3$\sigma$, 1 minute")
-# ax.axhline("6",label="SKA 3$\sigma$, 10 minutes",ls="--")
-# plt.errorbar(tdata,fdata,yerr=ferrdata,ls='none',marker='o',color='black')
-# plt.minorticks_on()
+xline = np.linspace(1e-3,400,1000)
+plt.plot(xline,[20e-6 for x in xline],ls='-',label="SKA 3$\sigma$, 10 minutes",color='black',alpha=0.5)
+plt.plot(xline,[6e-6 for x in xline],ls='--',label="SKA 3$\sigma$, 1 minute",color='black',alpha=0.5)
+ax.axhline("20",label="SKA 3$\sigma$, 1 minute")
+ax.axhline("6",label="SKA 3$\sigma$, 10 minutes",ls="--")
+# plt.errorbar(xdata,fdata,yerr=ferrdata,ls='none',marker='o',color='black')
+plt.minorticks_on()
 ax = plt.gca()
 # 
 # ax.tick_params(axis="x",which="minor",bottom=False)
