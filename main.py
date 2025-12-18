@@ -205,8 +205,8 @@ def reverse_shock(ivar, f0, nu0_1, k,p=2.2,givenuvals=False):
     s=10
     res = []
     t0=0.05
-    nu0_2 = 1e8
-    nu0_3 = 1e9
+    nu0_2 = 1e12
+    nu0_3 = 1e18
     a1 = -(47-10*k)/(12*(4-k))
     b1 = -(32-7*k)/(15*(4-k))
     b2 = -(73-14*k)/(12*(4-k))
@@ -272,14 +272,14 @@ if args.forwardOnly:
     print("d=0.2")
     bigpopt = popt
 else:
-    def wrap_bigsbpl(ivar, f0, frev, nu01rev,nu01,nu02):
+    def wrap_bigsbpl(ivar, f0, f0rev, nu01rev,nu01,nu02):
         t0 = 1
         s = 10
         d = 0.2
         k=args.k
         t, nu = ivar
         res = []
-        frev = reverse_shock(ivar, frev, nu01rev,k)
+        frev = reverse_shock(ivar, f0rev, nu01rev,k)
         f = theory_bigsbpl(ivar, f0, nu01, nu02, k)
         return frev + f
     initial_guess = [1e-3,5e-5, 10,10,50]
@@ -480,22 +480,27 @@ for band,ax in zip(bands,axs.flatten()):
            if band=='C':
                subcheck = checkdata[checkdata['band']==band]
                checkerr = np.sqrt(subcheck['err']**2 + subcheck['rms']**2)
-               ax.errorbar(subcheck['obsdate'],subcheck['flux'],yerr=checkerr,fmt=' ',color='black',marker='x', label='check source')
+               ax.errorbar(subcheck['obsdate'],subcheck['flux'],yerr=checkerr,fmt=' ',color='green',marker='o', label='check source')
            nu = np.array([freq for f in xline])
            yline = wrap_bigsbpl((xline,nu), *bigpopt)*1e6
         
     nu = np.array([freq for f in xline])
     yline = wrap_bigsbpl((xline,nu), *bigpopt)*1e6
-    ax.plot(xline,yline,alpha=0.5,color='black',ls=next(linestyle),label=f"{freq} GHz Forward+Reverse")
+    ax.plot(xline,yline,alpha=1,color='navy',ls=next(linestyle),label=f"{freq} GHz Forward+Reverse")
+    f0, f0rev, nu01rev, nu01, nu02 =  tuple(bigpopt)
+    yline = reverse_shock((xline,nu), f0rev, nu01rev,args.k)*1e6
+    ax.plot(xline,yline,alpha=0.5,color='red',ls=next(linestyle))
+    yline = theory_bigsbpl((xline,nu), f0, nu01, nu02, args.k)*1e6
+    ax.plot(xline,yline,alpha=0.5,color='red',ls=next(linestyle))
     # upper_param = np.array([bigpopt[0]+bigsigma[0],bigpopt[1]+bigsigma[1],bigpopt[2]-bigsigma[2],bigpopt[3]+bigsigma[3],bigpopt[4]+bigsigma[4]])
     # lower_param = np.array([bigpopt[0]-bigsigma[0],bigpopt[1]-bigsigma[1],bigpopt[2]+bigsigma[2],bigpopt[3]-bigsigma[3],bigpopt[4]-bigsigma[4]])
     if not args.noerrors:
         bound_lower = getminmax((xline,nu),bigpopt,bigsigma)[0]*1e6
         bound_upper = getminmax((xline,nu),bigpopt,bigsigma)[1]*1e6
 
-        ax.fill_between(xline,bound_lower,bound_upper,color='black',alpha=0.15)
+        ax.fill_between(xline,bound_lower,bound_upper,color='navy',alpha=0.15)
     yline = forwardshock((xline,nu), *forwardpopt)*1e6
-    ax.plot(xline,yline,alpha=0.5,color='black',ls=next(linestyle),label=f"{freq} GHz Forward")
+    ax.plot(xline,yline,alpha=0.5,color='black',ls=next(linestyle),label=f"{freq} GHz Forward Only Fit")
    #  bound_upper = forwardshock((xline,nu),*(forwardpopt+forwardsigma))*1e6
    #  bound_lower = forwardshock((xline,nu),*(forwardpopt-forwardsigma))*1e6
    #  ax.fill_between(xline,bound_lower,bound_upper,color='black',alpha=0.15)
@@ -638,7 +643,8 @@ plt.tight_layout()
 plt.savefig("UHFpredictlc.png")
 plt.close()
 
-for freq,obslimit in [(0.8,10.5),(1.3,5),(11.85,3)]:
+for freq,obslimit in [(0.8,(7.11,25.8)),(1.3,(3.45,19.8)),(6.55,(2.112,69))]:
+# for freq,obslimit in [(0.65,(14.1,25.8)),(1.3,(13.7,19.8)),(5.5,(14.6,21))]:
    #  curdata = plotdata[plotdata['freq']==0.81]
    #  print("UHF data:",curdata)
    #  xdata = curdata['obsdate']
@@ -650,7 +656,12 @@ for freq,obslimit in [(0.8,10.5),(1.3,5),(11.85,3)]:
     ax.set_xscale('log')
     ax.set_yscale('log')
     ax.set_ylabel("RMS noise ($\mu Jy/BM$)")
-    # ax.set_ylim(10,3e3)
+    # if not args.noerrors:
+    #     bound_lower = getminmax((xline,nu),bigpopt,bigsigma)[0]*1e6
+    #     bound_upper = getminmax((xline,nu),bigpopt,bigsigma)[1]*1e6
+
+    #     ax.fill_between(xline,bound_lower,bound_upper,color='navy',alpha=0.15)
+    # # ax.set_ylim(10,3e3)
     xmin = 0.003
     xmax = 1e4
     ax.set_xlim(xmin,xmax)
@@ -663,20 +674,37 @@ for freq,obslimit in [(0.8,10.5),(1.3,5),(11.85,3)]:
     xline = np.geomspace(xmin,xmax,num=100000)
     nu = np.array([freq for f in xline])
     yline = wrap_bigsbpl((xline,nu), *bigpopt)*1e6
-    ax.axhline(obslimit,ls=':')
-    print(freq,yline.max())
-    limits = xline[np.round(yline,1)==np.round(obslimit,1)]
+    ax.axhline(obslimit[0],ls=':',label="3$\sigma$ SKA",color="green")
+    if freq < 2:
+        instr = "MeerKAT"
+    else:
+        instr = "ATCA"
+    ax.axhline(obslimit[1],ls=':',label=f"3$\sigma$ {instr}",color="black")
+    limits = xline[np.round(yline,1)==np.round(obslimit[0],1)]
+
+
     ax.set_title(f"{freq} GHz Model")
+    if yline[0]>obslimit[0]:
+        inity = yline[0]
+    else:
+        inity = limits[0]
     if limits.size>1:
         # ax.axvline(limits[0],ls='--')
         # ax.axvline(limits[-1],ls='--')
         ax.set_xlabel("Days post-trigger")
-        ax.set_title(f"{freq} GHz Model\n{int(round(limits[-1]-limits[0],0))} days detectable")
-    ax.plot(xline,yline,alpha=0.5,color='black',ls='-',label='Model')
+        ax.set_title(f"{freq} GHz Model\n{int(round(limits[-1]-inity,0))} days detectable")
+    ax.plot(xline,yline,alpha=1,color='black',ls='-',label='Model')
+
+    # Split into parts
+    f0, f0rev, nu01rev, nu01, nu02 =  tuple(bigpopt)
+    yline = reverse_shock((xline,nu), f0rev, nu01rev,args.k)*1e6
+    ax.plot(xline,yline,alpha=0.5,color='red',ls="--")
+    yline = theory_bigsbpl((xline,nu), f0, nu01, nu02, args.k)*1e6
+    ax.plot(xline,yline,alpha=0.5,color='red',ls="-.")
     xdata = np.geomspace(plotdata['obsdate'].min(), 365, num=10)
     model = wrap_bigsbpl((xdata,nu),*bigpopt)*1e6
-    ydata = 3*np.array([obslimit for x in xdata])
-    print(ydata,model)
+    # ydata = 3*np.array([obslimit[0] for x in xdata])
+    # print(ydata,model)
     # plt.scatter(xdata[ydata>model],ydata[ydata>model],label=f'{freq} GHz',marker='^',color='black')
     # plt.scatter(xdata[ydata<=model],ydata[ydata<=model],label=f'{freq} GHz',marker='v',color='red')
     ax.grid()
@@ -684,46 +712,46 @@ for freq,obslimit in [(0.8,10.5),(1.3,5),(11.85,3)]:
     plt.tight_layout()
     plt.savefig(f"{freq}GHzmodellc_meas.png")
     plt.close()
-for freq,obslimit in [(0.074,46.5),(0.2,15),(0.8,7.2),(1.3,3.45)]:
-   #  curdata = plotdata[plotdata['freq']==0.81]
-   #  print("UHF data:",curdata)
-   #  xdata = curdata['obsdate']
-   #  ydata = curdata['rms']*3
-   #  plt.scatter(xdata,ydata,label=f'{freq} GHz',marker='v')
-    ax = plt.gca()
-    # obslimit =ydata.to_numpy()[0] 
-    ax.set_title(f'{freq} GHz')
-    ax.set_xscale('log')
-    ax.set_yscale('log')
-    ax.set_ylabel("RMS noise ($\mu Jy/BM$)")
-    # ax.set_ylim(10,3e3)
-    xmin = 0.003
-    xmax = 1e4
-    ax.set_xlim(xmin,xmax)
-    # ax.axvline((,ls=':',label="Today")
-    # for o in np.sort(np.unique(plotdata['obs'])):
-    #     subdata = plotdata[plotdata['obs']==o]
-    #     startobs = subdata['startdate'].min()
-    #     endobs = subdata['stopdate'].max()
-    #     plt.axvspan(startobs,endobs, alpha=0.15, color='gray')
-    xline = np.geomspace(xmin,xmax,num=100000)
-    nu = np.array([freq for f in xline])
-    yline = wrap_bigsbpl((xline,nu), *bigpopt)*1e6
-    ax.axhline(obslimit,ls=':')
-    print(freq,yline.max())
-    limits = xline[np.round(yline,1)==np.round(obslimit,1)]
-    ax.set_title(f"{freq} GHz Model")
-    if limits.size>1:
-        # ax.axvline(limits[0],ls='--')
-        # ax.axvline(limits[-1],ls='--')
-        ax.set_xlabel("Days post-trigger")
-        ax.set_title(f"{freq} GHz Model\n{int(round(limits[-1]-limits[0],0))} days detectable")
-    ax.plot(xline,yline,alpha=0.5,color='black',ls='-',label='Model')
-    ax.grid()
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig(f"{freq}GHzmodellc.png")
-    plt.close()
+# for freq,obslimit in [(0.074,46.5),(0.2,15),(0.8,7.2),(1.3,3.45)]:
+#    #  curdata = plotdata[plotdata['freq']==0.81]
+#    #  print("UHF data:",curdata)
+#    #  xdata = curdata['obsdate']
+#    #  ydata = curdata['rms']*3
+#    #  plt.scatter(xdata,ydata,label=f'{freq} GHz',marker='v')
+#     ax = plt.gca()
+#     # obslimit =ydata.to_numpy()[0] 
+#     ax.set_title(f'{freq} GHz')
+#     ax.set_xscale('log')
+#     ax.set_yscale('log')
+#     ax.set_ylabel("RMS noise ($\mu Jy/BM$)")
+#     # ax.set_ylim(10,3e3)
+#     xmin = 0.003
+#     xmax = 1e4
+#     ax.set_xlim(xmin,xmax)
+#     # ax.axvline((,ls=':',label="Today")
+#     # for o in np.sort(np.unique(plotdata['obs'])):
+#     #     subdata = plotdata[plotdata['obs']==o]
+#     #     startobs = subdata['startdate'].min()
+#     #     endobs = subdata['stopdate'].max()
+#     #     plt.axvspan(startobs,endobs, alpha=0.15, color='gray')
+#     xline = np.geomspace(xmin,xmax,num=100000)
+#     nu = np.array([freq for f in xline])
+#     yline = wrap_bigsbpl((xline,nu), *bigpopt)*1e6
+#     ax.axhline(obslimit,ls=':')
+#     print(freq,yline.max())
+#     limits = xline[np.round(yline,1)==np.round(obslimit,1)]
+#     ax.set_title(f"{freq} GHz Model")
+#     if limits.size>1:
+#         # ax.axvline(limits[0],ls='--')
+#         # ax.axvline(limits[-1],ls='--')
+#         ax.set_xlabel("Days post-trigger")
+#         ax.set_title(f"{freq} GHz Model\n{int(round(limits[-1]-limits[0],0))} days detectable")
+#     ax.plot(xline,yline,alpha=0.5,color='black',ls='-',label='Model')
+#     ax.grid()
+#     plt.legend()
+#     plt.tight_layout()
+#     plt.savefig(f"{freq}GHzmodellc.png")
+#     plt.close()
 
 
 
