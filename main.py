@@ -196,7 +196,7 @@ def theory_bigsbpl(ivar, f0, nu0_1, nu0_2, k,p=2.2):
         # res2 = dsbpl(nuval,fpk_2,num_2,c1_2,c2_2,nua_2,c3_2,s)
         res3 = dsbpl(nuval,fpk_2,num_2,c1_2,c2_2,nua_2,c3_2,s)
         y1.append(res1)
-        y2.append(res2)
+        y2.append(res2*2**(1/s))
     result = np.where( t<=t_break,np.array(y1),np.array(y2))
     return result
 # Relativistic Rev. Shock
@@ -663,7 +663,7 @@ for freq,obslimit in [(0.8,(7.11,25.8)),(1.3,(3.45,19.8)),(6.55,(2.112,69))]:
     #     ax.fill_between(xline,bound_lower,bound_upper,color='navy',alpha=0.15)
     # # ax.set_ylim(10,3e3)
     xmin = 0.003
-    xmax = 1e4
+    xmax = 1e6
     ax.set_xlim(xmin,xmax)
     # ax.axvline((,ls=':',label="Today")
     # for o in np.sort(np.unique(plotdata['obs'])):
@@ -680,7 +680,18 @@ for freq,obslimit in [(0.8,(7.11,25.8)),(1.3,(3.45,19.8)),(6.55,(2.112,69))]:
     else:
         instr = "ATCA"
     ax.axhline(obslimit[1],ls=':',label=f"3$\sigma$ {instr}",color="black")
+    ymid = wrap_bigsbpl((xline[:-1]+((xline[1:]-xline[:-1])/2),nu[:-1]), *bigpopt)*1e6
     limits = xline[np.round(yline,1)==np.round(obslimit[0],1)]
+    det1days = 0
+    det2days = 0
+    for xl1,xl2,yval in zip(xline[:-1],xline[1:],ymid):
+        duration = xl2-xl1
+        if yval > (obslimit[0]):
+            det1days+=duration
+        if yval > (obslimit[1]):
+            det2days+=duration
+        
+    print("Limits:",det1days,det2days)
 
 
     ax.set_title(f"{freq} GHz Model")
@@ -688,25 +699,30 @@ for freq,obslimit in [(0.8,(7.11,25.8)),(1.3,(3.45,19.8)),(6.55,(2.112,69))]:
         inity = yline[0]
     else:
         inity = limits[0]
-    if limits.size>1:
-        # ax.axvline(limits[0],ls='--')
-        # ax.axvline(limits[-1],ls='--')
-        ax.set_xlabel("Days post-trigger")
-        ax.set_title(f"{freq} GHz Model\n{int(round(limits[-1]-inity,0))} days detectable")
+    # ax.axvline(limits[0],ls='--')
+    # ax.axvline(limits[-1],ls='--')
+    ax.set_xlabel("Days post-trigger")
+    if det1days > 10000:
+        det1years = det1days/365.25
+        ax.set_title(f"{freq} GHz Model\n{int(round(det1years,0))} years detectable with SKA\n{int(round(det2days,0))} days detectable with {instr}")
+    else:
+        ax.set_title(f"{freq} GHz Model\n{int(round(det1days,0))} days detectable with SKA\n{int(round(det2days,0))} days detectable with {instr}")
     ax.plot(xline,yline,alpha=1,color='black',ls='-',label='Model')
 
     # Split into parts
     f0, f0rev, nu01rev, nu01, nu02 =  tuple(bigpopt)
     yline = reverse_shock((xline,nu), f0rev, nu01rev,args.k)*1e6
-    ax.plot(xline,yline,alpha=0.5,color='red',ls="--")
+    ax.plot(xline,yline,alpha=0.5,color='red',ls="--",label="Reverse Component")
     yline = theory_bigsbpl((xline,nu), f0, nu01, nu02, args.k)*1e6
-    ax.plot(xline,yline,alpha=0.5,color='red',ls="-.")
+    ax.plot(xline,yline,alpha=0.5,color='red',ls="-.",label="Forward Component")
     xdata = np.geomspace(plotdata['obsdate'].min(), 365, num=10)
     model = wrap_bigsbpl((xdata,nu),*bigpopt)*1e6
     # ydata = 3*np.array([obslimit[0] for x in xdata])
     # print(ydata,model)
     # plt.scatter(xdata[ydata>model],ydata[ydata>model],label=f'{freq} GHz',marker='^',color='black')
     # plt.scatter(xdata[ydata<=model],ydata[ydata<=model],label=f'{freq} GHz',marker='v',color='red')
+    ax.set_xlim(xmin,1e3)
+    ax.set_ylim(1e-1,3e3)
     ax.grid()
     plt.legend()
     plt.tight_layout()
@@ -780,15 +796,22 @@ title=f'nu_pk  alpha:{popt[1]}'
 ax.set_title(title)
 plt.savefig("nu_pk_time.png")
 plt.close()
-popt = bigpopt
 chisq = 0
 measdata = plotdata[plotdata['flux'] > 0]
-dof = len(measdata) - len(popt)
+dof = len(measdata) - len(forwardpopt)
 for d,nu,f,ferr,rms in measdata[['obsdate','freq','flux','err','rms']].to_numpy():
     errtot = np.sqrt(ferr**2 + rms**2)*1e-6
-    model = yline = wrap_bigsbpl((np.array([d]),np.array([nu])), *popt)
+    model = yline = forwardshock((np.array([d]),np.array([nu])), *forwardpopt)
     chisq += ((f*1e-6 - model) / errtot)**2 / dof
-print("red. chisq:",chisq,"dof:",dof,"fitting indices")
+print("FORWARD ONLY red. chisq:",chisq,"dof:",dof,"fitting indices")
+chisq = 0
+measdata = plotdata[plotdata['flux'] > 0]
+dof = len(measdata) - len(bigpopt)
+for d,nu,f,ferr,rms in measdata[['obsdate','freq','flux','err','rms']].to_numpy():
+    errtot = np.sqrt(ferr**2 + rms**2)*1e-6
+    model = yline = wrap_bigsbpl((np.array([d]),np.array([nu])), *bigpopt)
+    chisq += ((f*1e-6 - model) / errtot)**2 / dof
+print("FORWARD + REVERSE red. chisq:",chisq,"dof:",dof,"fitting indices")
 
 import matplotlib.pyplot as plt
 import pandas as pd 
