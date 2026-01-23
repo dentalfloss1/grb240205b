@@ -441,6 +441,12 @@ for band,ax in zip(bands,axs.flatten()):
     xline = np.geomspace(1e-2,365,num=100)
     for freq in np.sort(np.unique(curdata['freq']))[::-1]:
        if band in ['X']:
+           subcurdata = curdata[(curdata['freq']==freq) & (curdata['obsdate'] >= 1)]
+           subxdata = subcurdata['obsdate']
+           subydata = subcurdata['flux']
+           subyerr = np.sqrt(subcurdata['err']**2 + subcurdata['rms']**2)
+           ax.errorbar(subxdata,subydata,yerr=subyerr,fmt=' ',color='black')
+           ax.scatter(subxdata,subydata,label=f'{freq} GHz',color='black',marker=next(marker))
            subcurdata = curdata[(curdata['freq']==freq) & (curdata['obsdate'] < 1) & (curdata['band']=="X")]
            subxdata = subcurdata['obsdate']
            subydata = subcurdata['flux']
@@ -453,12 +459,6 @@ for band,ax in zip(bands,axs.flatten()):
           #  subyerr = np.sqrt(subcurdata['err']**2 + subcurdata['rms']**2)
           #  ax.errorbar(subxdata,subydata,yerr=subyerr,fmt=' ',color='black',alpha=0.5)
           #  ax.scatter(subxdata,subydata,label=f'{freq} GHz uvfit',marker='s',facecolors='none',edgecolor='black',alpha=0.5)
-           subcurdata = curdata[(curdata['freq']==freq) & (curdata['obsdate'] >= 1)]
-           subxdata = subcurdata['obsdate']
-           subydata = subcurdata['flux']
-           subyerr = np.sqrt(subcurdata['err']**2 + subcurdata['rms']**2)
-           ax.errorbar(subxdata,subydata,yerr=subyerr,fmt=' ',color='black')
-           ax.scatter(subxdata,subydata,label=f'{freq} GHz',color='black')
 
           #  yline = wrap_thinbigsbpl((xline,nu), *thinpopt)*1e6
           #  ax.plot(xline,yline,alpha=0.5,color='black',ls=next(linestyle),label=f"{freq} GHz model, Thin Shell")
