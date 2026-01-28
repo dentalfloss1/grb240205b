@@ -196,7 +196,7 @@ def theory_bigsbpl(ivar, f0, nu0_1, nu0_2, k,p=2.2):
         # res2 = dsbpl(nuval,fpk_2,num_2,c1_2,c2_2,nua_2,c3_2,s)
         res3 = dsbpl(nuval,fpk_2,num_2,c1_2,c2_2,nua_2,c3_2,s)
         y1.append(res1)
-        y2.append(res2*2**(1/s))
+        y2.append(res2)
     result = np.where( t<=t_break,np.array(y1),np.array(y2))
     return result
 # Relativistic Rev. Shock
