@@ -574,10 +574,10 @@ yerr = np.sqrt(curdata['err']**2 + curdata['rms']**2)
 # plt.scatter(xdata,ydata,label=f'{freq} GHz')
 plt.errorbar(xdata,ydata*1e-6,yerr=yerr*1e-6,ls="none",marker='o',label=f'{freq} GHz')
 xline = np.linspace(1e-3,400,1000)
-plt.plot(xline,[20e-6 for x in xline],ls='-',label="SKA 3$\sigma$, 10 minutes",color='black',alpha=0.5)
-plt.plot(xline,[6e-6 for x in xline],ls='--',label="SKA 3$\sigma$, 1 minute",color='black',alpha=0.5)
-ax.axhline("20",label="SKA 3$\sigma$, 1 minute")
-ax.axhline("6",label="SKA 3$\sigma$, 10 minutes",ls="--")
+plt.plot(xline,[20e-6 for x in xline],ls='-',label="SKAO 3$\sigma$, 10 minutes",color='black',alpha=0.5)
+plt.plot(xline,[6e-6 for x in xline],ls='--',label="SKAO 3$\sigma$, 1 minute",color='black',alpha=0.5)
+ax.axhline("20",label="SKAO 3$\sigma$, 1 minute")
+ax.axhline("6",label="SKAO 3$\sigma$, 10 minutes",ls="--")
 # plt.errorbar(xdata,fdata,yerr=ferrdata,ls='none',marker='o',color='black')
 plt.minorticks_on()
 ax = plt.gca()
@@ -643,7 +643,7 @@ plt.tight_layout()
 plt.savefig("UHFpredictlc.png")
 plt.close()
 
-for freq,obslimit in [(0.8,(7.11,25.8)),(1.3,(3.45,19.8)),(6.55,(2.112,69))]:
+for freq,obslimit,skaband in [(0.8,(7.11,25.8),"SKA-Mid Band 1"),(1.3,(3.45,19.8),"SKA-Mid Band 2"),(6.55,(2.112,69),"SKA-Mid Band 5a")]:
 # for freq,obslimit in [(0.65,(14.1,25.8)),(1.3,(13.7,19.8)),(5.5,(14.6,21))]:
    #  curdata = plotdata[plotdata['freq']==0.81]
    #  print("UHF data:",curdata)
@@ -674,7 +674,7 @@ for freq,obslimit in [(0.8,(7.11,25.8)),(1.3,(3.45,19.8)),(6.55,(2.112,69))]:
     xline = np.geomspace(xmin,xmax,num=100000)
     nu = np.array([freq for f in xline])
     yline = wrap_bigsbpl((xline,nu), *bigpopt)*1e6
-    ax.axhline(obslimit[0],ls=':',label="3$\sigma$ SKA",color="green")
+    ax.axhline(obslimit[0],ls=':',label=f"3$\sigma$ {skaband}",color="green")
     if freq < 2:
         instr = "MeerKAT"
     else:
@@ -704,9 +704,9 @@ for freq,obslimit in [(0.8,(7.11,25.8)),(1.3,(3.45,19.8)),(6.55,(2.112,69))]:
     ax.set_xlabel("Days post-trigger")
     if det1days > 10000:
         det1years = det1days/365.25
-        ax.set_title(f"{freq} GHz Model\n{int(round(det1years,0))} years detectable with SKA\n{int(round(det2days,0))} days detectable with {instr}")
+        ax.set_title(f"{freq} GHz Model\n{int(round(det1years,0))} years detectable with SKAO\n{int(round(det2days,0))} days detectable with {instr}")
     else:
-        ax.set_title(f"{freq} GHz Model\n{int(round(det1days,0))} days detectable with SKA\n{int(round(det2days,0))} days detectable with {instr}")
+        ax.set_title(f"{freq} GHz Model\n{int(round(det1days,0))} days detectable with SKAO\n{int(round(det2days,0))} days detectable with {instr}")
     ax.plot(xline,yline,alpha=1,color='black',ls='-',label='Model')
 
     # Split into parts

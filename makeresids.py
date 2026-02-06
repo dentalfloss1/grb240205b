@@ -13,6 +13,8 @@ trigger = datetime.datetime(2024, 2, 5, 22, 13, 6, 00)
 
 checkdata = pd.read_csv("checksrc.csv")
 plotdata = pd.read_csv("grbmeas.csv")
+plotdata['flux']-=80
+plotdata = plotdata[plotdata["flux"]>(2*plotdata['rms'])]
 startdate = [(datetime.datetime.strptime(d, "%Y-%m-%d %H:%M:%S.%f") - trigger).total_seconds()/3600/24 for d in plotdata['start']]
 stopdate = [(datetime.datetime.strptime(d, "%Y-%m-%d %H:%M:%S.%f") - trigger).total_seconds()/3600/24 for d in plotdata['stop']]
 obsdur = [(t2-t1) for t1,t2 in zip(startdate,stopdate)]
@@ -290,112 +292,116 @@ def getminmax(ivar, bigpopt, bigsigma):
     return np.array(minarray), np.array(maxarray)
 
 for band,ax in zip(bands,axs.flatten()):
-    curdata = plotdata[plotdata['band']==band]
-    if band in ['X']:
-        curdata = plotdata[(plotdata['band']=="X") | (plotdata['band']=="X1")]
-    # print(curdata)
-    xdata = curdata['obsdate']
-    ydata = curdata['flux']
-    yerr = np.sqrt(curdata['err']**2 + curdata['rms']**2)
-    marker = itertools.cycle((',', '+', '.', 'o', '*'))
-    linestyle = itertools.cycle(('-', ':', '-.', '--'))
-    xline = np.geomspace(1e-2,365,num=100)
-    for freq in np.sort(np.unique(curdata['freq']))[::-1]:
-       if band in ['X']:
-           subcurdata = curdata[(curdata['freq']==freq) & (curdata['obsdate'] < 1) & (curdata['band']=="X")]
-           subxdata = subcurdata['obsdate']
-           subydata = subcurdata['flux']
-           subyerr = np.sqrt(subcurdata['err']**2 + subcurdata['rms']**2)
-           ax.errorbar(subxdata,subydata,yerr=subyerr,fmt=' ',color='black')
-           ax.scatter(subxdata,subydata,label=f'{freq} GHz uvfit',facecolors='none',edgecolor='black')
-          #  subcurdata = curdata[(curdata['freq']==freq) & (curdata['obsdate'] < 1) & (curdata['band']=="X1")]
-          #  subxdata = subcurdata['obsdate']
-          #  subydata = subcurdata['flux']
-          #  subyerr = np.sqrt(subcurdata['err']**2 + subcurdata['rms']**2)
-          #  ax.errorbar(subxdata,subydata,yerr=subyerr,fmt=' ',color='black',alpha=0.5)
-          #  ax.scatter(subxdata,subydata,label=f'{freq} GHz uvfit',marker='s',facecolors='none',edgecolor='black',alpha=0.5)
-           subcurdata = curdata[(curdata['freq']==freq) & (curdata['obsdate'] >= 1)]
-           subxdata = subcurdata['obsdate']
-           subydata = subcurdata['flux']
-           subyerr = np.sqrt(subcurdata['err']**2 + subcurdata['rms']**2)
-           ax.errorbar(subxdata,subydata,yerr=subyerr,fmt=' ',color='black')
-           ax.scatter(subxdata,subydata,label=f'{freq} GHz',color='black')
+    try:
+        curdata = plotdata[plotdata['band']==band]
+        if band in ['X']:
+            curdata = plotdata[(plotdata['band']=="X") | (plotdata['band']=="X1")]
+        # print(curdata)
+        xdata = curdata['obsdate']
+        ydata = curdata['flux']
+        yerr = np.sqrt(curdata['err']**2 + curdata['rms']**2)
+        marker = itertools.cycle((',', '+', '.', 'o', '*'))
+        linestyle = itertools.cycle(('-', ':', '-.', '--'))
+        xline = np.geomspace(1e-2,365,num=100)
+        for freq in np.sort(np.unique(curdata['freq']))[::-1]:
+           if band in ['X']:
+               subcurdata = curdata[(curdata['freq']==freq) & (curdata['obsdate'] < 1) & (curdata['band']=="X")]
+               subxdata = subcurdata['obsdate']
+               subydata = subcurdata['flux']
+               subyerr = np.sqrt(subcurdata['err']**2 + subcurdata['rms']**2)
+               ax.errorbar(subxdata,subydata,yerr=subyerr,fmt=' ',color='black')
+               ax.scatter(subxdata,subydata,label=f'{freq} GHz uvfit',facecolors='none',edgecolor='black')
+              #  subcurdata = curdata[(curdata['freq']==freq) & (curdata['obsdate'] < 1) & (curdata['band']=="X1")]
+              #  subxdata = subcurdata['obsdate']
+              #  subydata = subcurdata['flux']
+              #  subyerr = np.sqrt(subcurdata['err']**2 + subcurdata['rms']**2)
+              #  ax.errorbar(subxdata,subydata,yerr=subyerr,fmt=' ',color='black',alpha=0.5)
+              #  ax.scatter(subxdata,subydata,label=f'{freq} GHz uvfit',marker='s',facecolors='none',edgecolor='black',alpha=0.5)
+               subcurdata = curdata[(curdata['freq']==freq) & (curdata['obsdate'] >= 1)]
+               subxdata = subcurdata['obsdate']
+               subydata = subcurdata['flux']
+               subyerr = np.sqrt(subcurdata['err']**2 + subcurdata['rms']**2)
+               ax.errorbar(subxdata,subydata,yerr=subyerr,fmt=' ',color='black')
+               ax.scatter(subxdata,subydata,label=f'{freq} GHz',color='black')
 
-          #  yline = wrap_thinbigsbpl((xline,nu), *thinpopt)*1e6
-          #  ax.plot(xline,yline,alpha=0.5,color='black',ls=next(linestyle),label=f"{freq} GHz model, Thin Shell")
-          #  subcheck = checkdata[checkdata['band']==band]
-          #  checkerr = np.sqrt(subcheck['err']**2 + subcheck['rms']**2)
-          #  ax.errorbar(subcheck['obsdate'],subcheck['flux'],yerr=checkerr,fmt=' ',color='black',marker='x', label='check source')
-       else:
-           subcurdata = curdata[(curdata['freq']==freq) & (curdata['err']!=-1)]
-           subxdata = subcurdata['obsdate']
-           subydata = subcurdata['flux']
-           subyerr = np.sqrt(subcurdata['err']**2 + subcurdata['rms']**2)
-           ax.errorbar(subxdata,subydata,yerr=subyerr,fmt=' ',color='black')
-           ax.scatter(subxdata,subydata,label=f'{freq} GHz',marker=next(marker),color='black')
-           limitdata = curdata[(curdata['freq']==freq) & (curdata['err']==-1)]
-           limitxdata = limitdata['obsdate']
-           limitydata = limitdata['rms']*3
-           if band=='C':
-               subcheck = checkdata[checkdata['band']==band]
-               checkerr = np.sqrt(subcheck['err']**2 + subcheck['rms']**2)
-               ax.errorbar(subcheck['obsdate'],subcheck['flux'],yerr=checkerr,fmt=' ',color='black',marker='x', label='check source')
-           nu = np.array([freq for f in xline])
-           yline = wrap_bigsbpl((xline,nu), *bigpopt)*1e6
+              #  yline = wrap_thinbigsbpl((xline,nu), *thinpopt)*1e6
+              #  ax.plot(xline,yline,alpha=0.5,color='black',ls=next(linestyle),label=f"{freq} GHz model, Thin Shell")
+              #  subcheck = checkdata[checkdata['band']==band]
+              #  checkerr = np.sqrt(subcheck['err']**2 + subcheck['rms']**2)
+              #  ax.errorbar(subcheck['obsdate'],subcheck['flux'],yerr=checkerr,fmt=' ',color='black',marker='x', label='check source')
+           else:
+               subcurdata = curdata[(curdata['freq']==freq) & (curdata['err']!=-1)]
+               subxdata = subcurdata['obsdate']
+               subydata = subcurdata['flux']
+               subyerr = np.sqrt(subcurdata['err']**2 + subcurdata['rms']**2)
+               ax.errorbar(subxdata,subydata,yerr=subyerr,fmt=' ',color='black')
+               ax.scatter(subxdata,subydata,label=f'{freq} GHz',marker=next(marker),color='black')
+               limitdata = curdata[(curdata['freq']==freq) & (curdata['err']==-1)]
+               limitxdata = limitdata['obsdate']
+               limitydata = limitdata['rms']*3
+              #  if band=='C':
+              #      subcheck = checkdata[checkdata['band']==band]
+              #      checkerr = np.sqrt(subcheck['err']**2 + subcheck['rms']**2)
+              #      ax.errorbar(subcheck['obsdate'],subcheck['flux'],yerr=checkerr,fmt=' ',color='black',marker='x', label='check source')
+               nu = np.array([freq for f in xline])
+               yline = wrap_bigsbpl((xline,nu), *bigpopt)*1e6
+            
+        nu = np.array([freq for f in xline])
+        yline = wrap_bigsbpl((xline,nu), *bigpopt)*1e6
+        ax.plot(xline,yline,alpha=0.5,color='black',ls=next(linestyle),label=f"{freq} GHz Forward")
+       #  ax.fill_between(xline,bound_lower,bound_upper,color='black',alpha=0.15)
+       #  yline = wrap_bigsbpl((xline,nu), *bigpopt)
+       #  ax.plot(xline,yline,alpha=0.5,color='black')
+ #        trypopt = [1.8e-3, 355e-6, 9.5, 50, 400]
+ #        yline = wrap_bigsbpl((xline,nu), *trypopt)
+ #        ax.plot(xline,yline,alpha=0.5,color='black',label=f'tryfit',ls=':')
+       #      
+       #  
+       #  popt, pcov = curve_fit(wrap_sbpl, xdata, ydata, p0=initial_guess,bounds=bounds)
+        ax.set_xscale('log')
+        ax.set_yscale('log')
+        ax.set_ylabel("Flux Density ($\mu Jy$)")
+        ax.set_xlim(1e-2,365)
+        ax.set_ylim(10,3000)
+        # test_theory = [1e-3, 18.5, 60.3 , 2]
+        # print(test_theory)
+        # ax.plot(xline,yline,color='black',alpha=0.5,ls=':',label='theory')
+        # ax.plot(xline,yline,color='black',alpha=0.5,ls='-')
+
+
+#         test_theory = [1.e-3, 58 , 95 , 0]
+#         print(test_theory)
         
-    nu = np.array([freq for f in xline])
-    yline = wrap_bigsbpl((xline,nu), *bigpopt)*1e6
-    ax.plot(xline,yline,alpha=0.5,color='black',ls=next(linestyle),label=f"{freq} GHz Forward")
-   #  ax.fill_between(xline,bound_lower,bound_upper,color='black',alpha=0.15)
-   #  yline = wrap_bigsbpl((xline,nu), *bigpopt)
-   #  ax.plot(xline,yline,alpha=0.5,color='black')
- #    trypopt = [1.8e-3, 355e-6, 9.5, 50, 400]
- #    yline = wrap_bigsbpl((xline,nu), *trypopt)
- #    ax.plot(xline,yline,alpha=0.5,color='black',label=f'tryfit',ls=':')
-   #      
-   #  
-   #  popt, pcov = curve_fit(wrap_sbpl, xdata, ydata, p0=initial_guess,bounds=bounds)
-    ax.set_xscale('log')
-    ax.set_yscale('log')
-    ax.set_ylabel("Flux Density ($\mu Jy$)")
-    ax.set_xlim(1e-2,365)
-    ax.set_ylim(10,3000)
-    # test_theory = [1e-3, 18.5, 60.3 , 2]
-    # print(test_theory)
-    # ax.plot(xline,yline,color='black',alpha=0.5,ls=':',label='theory')
-    # ax.plot(xline,yline,color='black',alpha=0.5,ls='-')
-
-
-#     test_theory = [1.e-3, 58 , 95 , 0]
-#     print(test_theory)
-    
-#     ax.axvline(t_break,ls=':')
-#     yline = theory_bigsbpl((xline,nu), *test_theory)
-#     ax.plot(xline,yline,color='black',alpha=0.5,ls=':',label='ISM')
-    # yline = wrap_latebigsbpl((xline,nu), *latebigpopt)
-#     ax.plot(xline,yline,color='black',ls='--',alpha=0.5,label='nonrel')
- #    if freq==9.0:
-#         yline = wrap_earlybigsbpl(xline, *earlybigpopt)
-     #    ax.plot(xline,yline,color='black',ls='--',alpha=0.5,label='Reverse Shock')
-# def wrap_latebigsbpl(ivar, f0, nu0, a1, b1, c1, c2):
-    if len(np.unique(curdata['freq'])) >1:
-        freq1 = curdata['freq'].min()
-        freq2 = curdata['freq'].max()
-        title=f'{freq1} to {freq2} GHz'
-        ax.set_title(title)
-    else:
-        title=f'{freq} GHz'
-        ax.set_title(title)
-    ax.legend()
-   #  if (freq < 16) and (freq >2):
-   #      tpk.append(popt[1])
-   #      nupk.append(np.average(curdata['freq']))
-    for o in np.sort(np.unique(curdata['obs'])):
-   
-        subdata = curdata[curdata['obs']==o]
-        startobs = subdata['startdate'].min()
-        endobs = subdata['stopdate'].max()
-        ax.axvspan(startobs,endobs, alpha=0.15, color='gray')
+#         ax.axvline(t_break,ls=':')
+#         yline = theory_bigsbpl((xline,nu), *test_theory)
+#         ax.plot(xline,yline,color='black',alpha=0.5,ls=':',label='ISM')
+        # yline = wrap_latebigsbpl((xline,nu), *latebigpopt)
+#         ax.plot(xline,yline,color='black',ls='--',alpha=0.5,label='nonrel')
+ #        if freq==9.0:
+#             yline = wrap_earlybigsbpl(xline, *earlybigpopt)
+         #    ax.plot(xline,yline,color='black',ls='--',alpha=0.5,label='Reverse Shock')
+# d    ef wrap_latebigsbpl(ivar, f0, nu0, a1, b1, c1, c2):
+        if len(np.unique(curdata['freq'])) >1:
+            freq1 = curdata['freq'].min()
+            freq2 = curdata['freq'].max()
+            title=f'{freq1} to {freq2} GHz'
+            ax.set_title(title)
+        else:
+            title=f'{freq} GHz'
+            ax.set_title(title)
+        ax.legend()
+       #  if (freq < 16) and (freq >2):
+       #      tpk.append(popt[1])
+       #      nupk.append(np.average(curdata['freq']))
+        for o in np.sort(np.unique(curdata['obs'])):
+       
+            subdata = curdata[curdata['obs']==o]
+            startobs = subdata['startdate'].min()
+            endobs = subdata['stopdate'].max()
+            ax.axvspan(startobs,endobs, alpha=0.15, color='gray')
+    except:
+        print(Exception)
+        continue
 # plt.legend()
 ax.set_xlabel("Days post-trigger")
 if args.k==2:
