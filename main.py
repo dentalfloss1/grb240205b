@@ -10,7 +10,8 @@ from scipy.optimize import curve_fit
 from scipy.stats import linregress
 import argparse
 trigger = datetime.datetime(2024, 2, 5, 22, 13, 6, 00)
-
+nuc_0 = 1.25e9
+t0 = 1
 checkdata = pd.read_csv("checksrc.csv")
 plotdata = pd.read_csv("grbmeas.csv")
 startdate = [(datetime.datetime.strptime(d, "%Y-%m-%d %H:%M:%S.%f") - trigger).total_seconds()/3600/24 for d in plotdata['start']]
@@ -40,14 +41,25 @@ def double_sbpl(x,amp,x_break1,a1,n1,a2,n2,x_break2):
     return amp*x_break1
 
 
-def dsbpl(x,amp,xb1,a1,a2,xb2,a3,s):
-    if (a3 < a1) & (a1 < a2):
-        result =  amp*(((x/xb1)**(a1*s) + (x/xb1)**(a2*s))**(-1) + (xb2/xb1)**(-a2*s)*(x/xb2)**(-a3*s))**(-1/s)
-    elif (a3 < a2) & (a2 < a1):
-        result = amp*((x/xb1)**(-a1*s) + (x/xb1)**(-a2*s) + ((xb1/xb2)**(a2*s))*((x/xb2)**(-a3*s)) )**(-1/s)
-    else:
-        raise Exception("Unhandled powerlaw index ordering")
-    return result
+def dsbpl(x,A,xb1,alpha1,alpha2,xb2,alpha3,s=0.2):
+    """
+    from chatGPT
+    Multiplicative smoothly broken power law
+    """
+
+    x = np.asarray(x)
+    alpha1 = -alpha1
+    alpha2 = -alpha2
+    alpha3 = -alpha3
+    s1 = s
+    s2 = s
+
+    term1 = (x / xb1) ** (-alpha1)
+
+    smooth1 = (1 + (x / xb1) ** (1.0 / s1)) ** ((alpha1 - alpha2) * s1)
+    smooth2 = (1 + (x / xb2) ** (1.0 / s2)) ** ((alpha2 - alpha3) * s2)
+
+    return A * term1 * smooth1 * smooth2
 
 def verify_powerlaw(x,amp,xb1,a1,a2,xb2,a3):
     result = x
@@ -102,8 +114,42 @@ ax.set_yscale('log')
 # plt.show()
 plt.close()
 # exit()
+def smooth_time_transition(F1, F2, t, tb, s_t, k=1.0):
+    """
+    Smooth transition between two spectra
+    (taken from chatGPT)
+    F1, F2 : arrays (same shape, over frequency)
+    t      : scalar or array
+    tb     : break time
+    s_t    : smoothness
+    k      : controls transition steepness
+    
+    """
+
+    w = (t / tb)**(k * s_t)
+
+    return (F1**(-s_t) + F2**(-s_t) * w)**(-1.0 / s_t)
+def tsbpl(x, A, xb1, xb2, xb3, alpha1, alpha2, alpha3, alpha4,s=0.2):
+    """
+    Triple Smoothly Broken Power Law (TSBPL)
+    """
+
+    x = np.asarray(x)
+    alpha1 = -alpha1 
+    alpha2 = -alpha2
+    alpha3 = -alpha3
+    alpha4 = -alpha4
+    s1 = s
+    s2 = s
+    s3 = s
+    term1 = (x / xb1) ** (-alpha1)
+
+    smooth1 = (1 + (x / xb1) ** (1.0 / s1)) ** ((alpha1 - alpha2) * s1)
+    smooth2 = (1 + (x / xb2) ** (1.0 / s2)) ** ((alpha2 - alpha3) * s2)
+    smooth3 = (1 + (x / xb3) ** (1.0 / s3)) ** ((alpha3 - alpha4) * s3)
+
+    return A * term1 * smooth1 * smooth2 * smooth3
 def get_tbreak(ivar, f0, nu0_1, nu0_2, k):
-    t0 = 1
     d=0.4
     s = 10
     a1 = -k/(2*(4-k))
@@ -120,13 +166,13 @@ def get_tbreak(ivar, f0, nu0_1, nu0_2, k):
             break
     return t_break
 def theory_bigsbpl(ivar, f0, nu0_1, nu0_2, k,p=2.2):
-    t0 = 1
+    
     d=0.4
-    s = 10
+    s = 5
     a1 = -k/(2*(4-k))
     b1 = -3*k/(5*(4-k))
     b2 = -3/2
-    nu0_3 = 1e9
+    nu0_3 = nuc_0
     t, nu = ivar
     y1 = []
     y2 = []
@@ -147,57 +193,54 @@ def theory_bigsbpl(ivar, f0, nu0_1, nu0_2, k,p=2.2):
         nua_1 = nu0_1*(tval/t0)**b1_1
         num_1 = nu0_2*(tval/t0)**b2_1
         nuc_1 = nu0_3*(tval/t0)**b3_1
-        if nuval > nuc_1:
-            raise Exception("Not suitable for handling the cooling break. Needs further development")
-        if True: #nuval < nua_1:
-            c1_1 = 2
-            c2_1 = 1/3
-            c3_1 = -(p-1)/2
-            fnu_m1 = f0*(tval/t0)**a1
-            fpk_1 = fnu_m1*(nua_1/num_1)**(1/3)
-            nubreak1_1 = nua_1
-            nubreak2_1 = num_1
-        else: # Needs to work in order for the cooling break to be incorporated. In particular, there are issues with smoothly breaking between these regimes.
-             # Maybe a triple broken powerlaw would solve this?
-            fnu_m1 = f0*(tval/t0)**a1
-            c1_1 = 1/3
-            c2_1 = -(p-1)/2
-            c3_1 = -1
-            fpk_1 = f0*(tval/t0)**a1
-            nubreak1_1 = num_1
-            nubreak2_1 = nuc_1
-        a1_2 = -k/(2*(4-k))
-        b1_2 = -3/2
-        b2_2 = -(12*p+8-3*p*k+2*k)/(2*(4-k)*(p+4))
-        c1_2 = 2
-        c2_2 = 5/2
-        c3_2 = -(p-1)/2
-        # At t_break num==nua, determines the normalization of these values.
-        num_2 = nu_trans*(tval/t0)**b1_2
-        nua_2 = nu_trans*(tval/t0)**b2_2
-        num_break2 = nu_trans*(t_break/t0)**b1_2
-        nua_break2 = nu_trans*(t_break/t0)**b2_2
-        fnu_m_2 = f0*(tval/t0)**a1_2
-        fpk = fnu_m_2*(num_2/nua_2)**(3)
-        fpk_2 = fpk
-        res1 = dsbpl(nuval,fpk_1,nubreak1_1,c1_1,c2_1,nubreak2_1,c3_1,s)
-
+        ##### Used to be an if here ### 
         c1_1 = 2
         c2_1 = 1/3
         c3_1 = -(p-1)/2
+        c4_1 = -p/2
+        fnu_m1 = f0*(tval/t0)**a1
+        fpk_1 = fnu_m1*(nua_1/num_1)**(1/3)
+        nubreak1_1 = nua_1
+        nubreak2_1 = num_1
+        nubreak3_1 = nuc_1
+        #### ######################
+        a1_2 = -k/(2*(4-k))
+        b1_2 = -3/2
+        b2_2 = -(12*p+8-3*p*k+2*k)/(2*(4-k)*(p+4))
+        b3_2 = -(4-3*k)/(2*(4-k))
+        c1_2 = 2
+        c2_2 = 5/2
+        c3_2 = -(p-1)/2
+        c4_2 = -p/2
+        # At t_break num==nua, determines the normalization of these values.
+        num_2 = nu_trans*(tval/t0)**b1_2
+        nua_2 = nu_trans*(tval/t0)**b2_2
+        nuc_2 = nu_trans*(tval/t0)**b3_2
+        num_break2 = nu_trans*(t_break/t0)**b1_2
+        nua_break2 = nu_trans*(t_break/t0)**b2_2
+        nuc_break2 = nu_trans*(t_break/t0)**b3_2
+        fnu_m_2 = f0*(tval/t0)**a1_2
+        fpk = fnu_m_2*(num_2/nua_2)**(3)
+        fpk_2 = fpk
+        res1 = tsbpl(nuval,fpk_1,nubreak1_1,nubreak2_1,nubreak3_1,c1_1,c2_1,c3_1,c4_1)
+
         num_1 = nu0_1*(t_break/t0)**b1_1
         nua_1 = nu0_2*(t_break/t0)**(b2_1)
+        nuc_1 = nu0_3*(t_break/t0)**(b3_1)
         fnu_m1 = f0*(t_break/t0)**a1
         fpk_1 = fnu_m1*(nua_1/num_1)**(1/3)
-        F_bk1 = dsbpl(nuval,fpk_1,num_1,c1_1,c2_1,nua_1,c3_1,s)
+        F_bk1 = tsbpl(nuval, fpk_1, num_1, nua_1, nuc_1, c1_1,c2_1,c3_1,c4_1)
+        # F_bk1 = dsbpl(nuval,fpk_1,num_1,c1_1,c2_1,nua_1,c3_1,s)
         fpk2_break = f0*(t_break/t0)**a1_2*(num_break2/nua_break2)**(3)
-        F_bk2 = dsbpl(nuval,fpk2_break,num_break2,c1_2,c2_2,nua_break2,c3_2,s)
-        res2 = F_bk1*dsbpl(nuval,fpk_2,num_2,c1_2,c2_2,nua_2,c3_2,s)/F_bk2
-        # res2 = dsbpl(nuval,fpk_2,num_2,c1_2,c2_2,nua_2,c3_2,s)
-        res3 = dsbpl(nuval,fpk_2,num_2,c1_2,c2_2,nua_2,c3_2,s)
+        F_bk2 = tsbpl(nuval,fpk2_break, num_break2, nua_break2, nuc_break2, c1_2, c2_2, c3_2, c4_2)
+
+        res2 = F_bk1*tsbpl(nuval,fpk_2,num_2,nua_2,nuc_2,c1_2,c2_2,c3_2,c4_2)/F_bk2
+        res3 = tsbpl(nuval,fpk_2,num_2,nua_2,nuc_2,c1_2,c2_2,c3_2,c4_2)
         y1.append(res1)
         y2.append(res2)
-    result = np.where( t<=t_break,np.array(y1),np.array(y2))
+        # y2.append(res2)
+    # result = np.where( t<=t_break,np.array(y1),np.array(y2))
+    result = smooth_time_transition(np.array(y1),np.array(y2),t,t_break,s_t=s)
     return result
 # Relativistic Rev. Shock
 def reverse_shock(ivar, f0, nu0_1, k,p=2.2,givenuvals=False):
@@ -222,8 +265,9 @@ def reverse_shock(ivar, f0, nu0_1, k,p=2.2,givenuvals=False):
                 c1 = 2 
                 c2 = 1/3
                 c3 = -(p-1)/2
+                c4 = -(p-1)/2 - 0.1
                 fpk = fnu_m*(nua/num)**(1/3)
-                result = dsbpl(nuval,fpk,nua,c1,c2,num,c3,s)
+                result = tsbpl(nuval,fpk,nua,num,nuc,c1,c2,c3,c4)
             else:
                 c1 = 1/3
                 c2 = -(p-1)/2
@@ -242,7 +286,6 @@ def reverse_shock(ivar, f0, nu0_1, k,p=2.2,givenuvals=False):
         return np.array(res)
 if args.forwardOnly:
     def wrap_bigsbpl(ivar, f0,nu01,nu02):
-        t0 = 1
         s = 10
         d = 0.2
         k=args.k
@@ -273,7 +316,6 @@ if args.forwardOnly:
     bigpopt = popt
 else:
     def wrap_bigsbpl(ivar, f0, f0rev, nu01rev,nu01,nu02):
-        t0 = 1
         s = 10
         d = 0.2
         k=args.k
@@ -344,7 +386,6 @@ else:
             res.append(result)
         return np.array(res)
     def forwardshock(ivar, f0,nu01,nu02):
-        t0 = 1
         s = 10
         d = 0.2
         k=args.k
@@ -379,7 +420,6 @@ else:
 
 
    #  def wrap_thinbigsbpl(ivar, f0, frev, nu0rev,nu01,nu02):
-   #      t0 = 1
    #      s = 10
    #      d = 0.2
    #      k=args.k
