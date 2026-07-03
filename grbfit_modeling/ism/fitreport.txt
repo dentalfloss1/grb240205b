@@ -1,0 +1,77 @@
+=== CONFIGURATION ===
+burst:
+  name: GRB240205B
+  t0: 1.0
+  t0_rev: 0.05
+  fitstart: 0.01
+  z: 0.824
+data:
+  radio_file: grbmeas.csv
+  other_file: otherdata.txt
+  batxrt_file: null
+  xrt_photon_index: null
+  absorption_ratio: null
+model:
+  type: forward_reverse
+  k: 0
+  p: 2.2
+fit:
+  initial_guess:
+    f0: 0.001
+    f0_rev: 5.0e-05
+    nua0_rev: 10.0
+    num0_rev: 500.0
+    nuc0_rev: 800000000.0
+    nua_0: 13.0
+    num_0: 20000.0
+    nuc_0: 800000000.0
+    t_j: null
+  bounds:
+    f0:
+    - 0.0005
+    - 1.0
+    f0_rev:
+    - 3.0e-05
+    - 1.0
+    nua0_rev:
+    - 1.0
+    - 50.0
+    num0_rev:
+    - 20.0
+    - 1000.0
+    nuc0_rev:
+    - 800000000.0
+    - 800000000.0
+    nua_0:
+    - 1.0
+    - 100.0
+    num_0:
+    - 1000.0
+    - 1000000.0
+    nuc_0:
+    - 800000000.0
+    - 800000000.0
+    t_j:
+    - 200.0
+    - 200.0
+  max_rest_freq: 2470000.0
+  fit_xrt: false
+  param_keys:
+  - f0
+  - f0_rev
+  - nua0_rev
+  - num0_rev
+  - nua_0
+  - num_0
+  fixed_params:
+    nuc0_rev: 800000000.0
+    nuc_0: 800000000.0
+
+=== GOODNESS OF FIT ===
+Data points used: 57
+Fitted parameters: 6
+Degrees of freedom: 57 - 6 = 51
+Chi-square: 121.544
+Reduced chi-square: 2.38322
+AIC: 133.544
+BIC: 145.803
