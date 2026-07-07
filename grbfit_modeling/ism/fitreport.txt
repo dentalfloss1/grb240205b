@@ -71,7 +71,7 @@ fit:
 Data points used: 57
 Fitted parameters: 6
 Degrees of freedom: 57 - 6 = 51
-Chi-square: 578.867
-Reduced chi-square: 11.3503
-AIC: 590.867
-BIC: 603.126
+Chi-square: 285.941
+Reduced chi-square: 5.60669
+AIC: 297.941
+BIC: 310.199
