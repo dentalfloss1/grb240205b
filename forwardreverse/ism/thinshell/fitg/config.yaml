@@ -1,0 +1,67 @@
+# 🔧 GRB Fit Configuration File
+
+burst:
+  name: GRB260205B
+  # Times are in observer-frame days.
+  t0: 1.0
+  t0_rev: 0.05
+  fitstart: 0.01
+  z: 0.824
+
+data:
+  # Input CSV flux, err, and rms columns are expected in microJy.
+  # Input freq columns are expected in GHz.
+  radio_file: grbmeas.csv
+  other_file: otherdata.txt
+  batxrt_file: null
+  xrt_photon_index: null
+  # Unabsorbed flux / observed flux from the XRT spectrum.
+  absorption_ratio: null
+
+model:
+  type: forward_reverse   # options: forward_only, forward_reverse
+  # Reverse-shock shell model: thick (default) or thin.
+  reverse_shell: thin
+  # For a thin reverse shock, fit g within its theoretical bounds.
+  # Otherwise g is fixed to the midpoint of those bounds.
+  fit_g: true
+  # If true, attenuate reverse-shock photons by the forward-shock absorption screen.
+  # Defaults to false when omitted.
+  apply_fs_absorption: false
+  k: 0
+  p: 2.2
+
+fit:
+  initial_guess:
+    f0: 1e-3
+    f0_rev: 5e-5
+    nua0_rev: 10
+    num0_rev: 500
+    nuc0_rev: 8e8
+    nua_0: 13
+    num_0: 2e4
+    nuc_0: 8e8
+    t_j: null
+  bounds:
+    # Set lower and upper equal to remove a parameter from fitting.
+    # The fixed value will be the corresponding initial_guess value.
+    f0: [5e-4, 1e2]
+    f0_rev: [1e-5, 1]
+    nua0_rev: [1, 100]
+    num0_rev: [2, 1e6]
+    nuc0_rev: [8e8, 8e8]
+    nua_0: [1, 100]
+    num_0: [2, 1e6]
+    nuc_0: [8e8, 8e8]
+    t_j: [200, 200]
+  max_rest_freq: 2.47e6 # GHz, FUV in rest frame, only used in z is defined.
+  fit_xrt: false
+  # MCMC controls. Use mcmc_mode: fixed for a quick fixed-length run.
+  mcmc_mode: adaptive
+  nwalkers: 32
+  burn_in: 1000
+  nsteps: 2000
+  max_steps: 50000
+  check_interval: 1000
+  autocorr_ratio: 50
+  autocorr_tol: 0.02

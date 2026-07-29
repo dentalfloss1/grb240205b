@@ -1,0 +1,155 @@
+{
+  "format": "grbfit.model_fit",
+  "format_version": 1,
+  "burst": {
+    "name": "GRB240205B",
+    "t0": 1.0,
+    "t0_rev": 0.05,
+    "fitstart": 0.01,
+    "z": 0.824
+  },
+  "model": {
+    "type": "forward_only",
+    "k": 2,
+    "p": 2.2
+  },
+  "fit": {
+    "param_keys": [
+      "f0",
+      "nua_0",
+      "num_0"
+    ],
+    "fixed_params": {
+      "nuc_0": 800000000.0
+    },
+    "parameters": {
+      "f0": {
+        "value": 0.0028556882329938,
+        "errneg": 4.580441505406532e-05,
+        "errpos": 4.5750539031729626e-05,
+        "status": "fitted",
+        "unit": "Jy"
+      },
+      "nua_0": {
+        "value": 7.023489867832939,
+        "errneg": 0.4216953682334319,
+        "errpos": 0.4286257688302024,
+        "status": "fitted",
+        "unit": "GHz"
+      },
+      "num_0": {
+        "value": 1742.4010711129845,
+        "errneg": 57.04857609052351,
+        "errpos": 60.671746482437584,
+        "status": "fitted",
+        "unit": "GHz"
+      },
+      "nuc_0": {
+        "value": 800000000.0,
+        "errneg": null,
+        "errpos": null,
+        "status": "fixed",
+        "unit": "GHz"
+      }
+    },
+    "fixed_parameters": [
+      "nuc_0"
+    ],
+    "units": {
+      "flux": "Jy",
+      "frequency": "GHz",
+      "time": "d"
+    }
+  },
+  "goodness": {
+    "ndata": 57,
+    "nfit": 3,
+    "DOF": 54,
+    "chisq": 333.45880753676204,
+    "redchisq": 6.17516310253263,
+    "AIC": 339.45880753676204,
+    "BIC": 345.5879613402657
+  },
+  "config": {
+    "burst": {
+      "name": "GRB240205B",
+      "t0": 1.0,
+      "t0_rev": 0.05,
+      "fitstart": 0.01,
+      "z": 0.824
+    },
+    "data": {
+      "radio_file": "grbmeas.csv",
+      "other_file": "otherdata.txt",
+      "batxrt_file": null,
+      "xrt_photon_index": null,
+      "absorption_ratio": null
+    },
+    "model": {
+      "type": "forward_only",
+      "k": 2,
+      "p": 2.2
+    },
+    "fit": {
+      "initial_guess": {
+        "f0": 0.001,
+        "f0_rev": 0.0005,
+        "nua0_rev": 10.0,
+        "num0_rev": 500.0,
+        "nuc0_rev": 800000000.0,
+        "nua_0": 13.0,
+        "num_0": 20000.0,
+        "nuc_0": 800000000.0,
+        "t_j": null
+      },
+      "bounds": {
+        "f0": [
+          0.0005,
+          100.0
+        ],
+        "f0_rev": [
+          1e-05,
+          1.0
+        ],
+        "nua0_rev": [
+          1.0,
+          50.0
+        ],
+        "num0_rev": [
+          10.0,
+          1000.0
+        ],
+        "nuc0_rev": [
+          800000000.0,
+          800000000.0
+        ],
+        "nua_0": [
+          1.0,
+          100.0
+        ],
+        "num_0": [
+          100.0,
+          100000.0
+        ],
+        "nuc_0": [
+          800000000.0,
+          800000000.0
+        ],
+        "t_j": [
+          200.0,
+          200.0
+        ]
+      },
+      "max_rest_freq": 2470000.0,
+      "fit_xrt": false,
+      "param_keys": [
+        "f0",
+        "nua_0",
+        "num_0"
+      ],
+      "fixed_params": {
+        "nuc_0": 800000000.0
+      }
+    }
+  }
+}

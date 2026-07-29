@@ -1,0 +1,219 @@
+{
+  "format": "grbfit.model_fit",
+  "format_version": 1,
+  "burst": {
+    "name": "GRB260205B",
+    "t0": 1.0,
+    "t0_rev": 0.05,
+    "fitstart": 0.01,
+    "z": 0.824
+  },
+  "model": {
+    "type": "forward_reverse",
+    "k": 0,
+    "p": 2.2,
+    "reverse_shell": "thin",
+    "fit_g": true
+  },
+  "fit": {
+    "param_keys": [
+      "f0",
+      "f0_rev",
+      "nua0_rev",
+      "num0_rev",
+      "nua_0",
+      "num_0",
+      "g"
+    ],
+    "fixed_params": {
+      "nuc0_rev": 800000000.0,
+      "nuc_0": 800000000.0
+    },
+    "parameters": {
+      "f0": {
+        "value": 0.0014305498908841847,
+        "errneg": 0.0001889601924922285,
+        "errpos": 0.0005291866830888642,
+        "status": "fitted",
+        "unit": "Jy"
+      },
+      "f0_rev": {
+        "value": 0.006207399103655487,
+        "errneg": 0.0007032042025191219,
+        "errpos": 0.019836576404283233,
+        "status": "fitted",
+        "unit": "Jy"
+      },
+      "nua0_rev": {
+        "value": 10.376112758942984,
+        "errneg": 7.636548743655727,
+        "errpos": 48.80467237053004,
+        "status": "fitted",
+        "unit": "GHz"
+      },
+      "num0_rev": {
+        "value": 652287.1905727222,
+        "errneg": 593536.4758406645,
+        "errpos": 155068.7222968958,
+        "status": "fitted",
+        "unit": "GHz"
+      },
+      "nuc0_rev": {
+        "value": 800000000.0,
+        "errneg": null,
+        "errpos": null,
+        "status": "fixed",
+        "unit": "GHz"
+      },
+      "nua_0": {
+        "value": 19.1598153658325,
+        "errneg": 4.1502221218047755,
+        "errpos": 19.502620616460916,
+        "status": "fitted",
+        "unit": "GHz"
+      },
+      "num_0": {
+        "value": 119.98901889079889,
+        "errneg": 59.57249588086348,
+        "errpos": 46.39999417270482,
+        "status": "fitted",
+        "unit": "GHz"
+      },
+      "nuc_0": {
+        "value": 800000000.0,
+        "errneg": null,
+        "errpos": null,
+        "status": "fixed",
+        "unit": "GHz"
+      },
+      "g": {
+        "value": 3.446072720683195,
+        "errneg": 0.09648870645208074,
+        "errpos": 0.040134112696307955,
+        "status": "fitted",
+        "unit": null
+      }
+    },
+    "fixed_parameters": [
+      "nuc0_rev",
+      "nuc_0"
+    ],
+    "units": {
+      "flux": "Jy",
+      "frequency": "GHz",
+      "time": "d"
+    }
+  },
+  "goodness": {
+    "ndata": 57,
+    "nfit": 7,
+    "DOF": 50,
+    "chisq": 221.85869172138493,
+    "redchisq": 4.437173834427699,
+    "AIC": 235.85869172138493,
+    "BIC": 250.16005059622677
+  },
+  "config": {
+    "burst": {
+      "name": "GRB260205B",
+      "t0": 1.0,
+      "t0_rev": 0.05,
+      "fitstart": 0.01,
+      "z": 0.824
+    },
+    "data": {
+      "radio_file": "grbmeas.csv",
+      "other_file": "otherdata.txt",
+      "batxrt_file": null,
+      "xrt_photon_index": null,
+      "absorption_ratio": null
+    },
+    "model": {
+      "type": "forward_reverse",
+      "reverse_shell": "thin",
+      "fit_g": true,
+      "apply_fs_absorption": false,
+      "k": 0,
+      "p": 2.2
+    },
+    "fit": {
+      "initial_guess": {
+        "f0": 0.001,
+        "f0_rev": 5e-05,
+        "nua0_rev": 10.0,
+        "num0_rev": 500.0,
+        "nuc0_rev": 800000000.0,
+        "nua_0": 13.0,
+        "num_0": 20000.0,
+        "nuc_0": 800000000.0,
+        "t_j": null,
+        "g": 2.5
+      },
+      "bounds": {
+        "f0": [
+          0.0005,
+          100.0
+        ],
+        "f0_rev": [
+          1e-05,
+          1.0
+        ],
+        "nua0_rev": [
+          1.0,
+          100.0
+        ],
+        "num0_rev": [
+          2.0,
+          1000000.0
+        ],
+        "nuc0_rev": [
+          800000000.0,
+          800000000.0
+        ],
+        "nua_0": [
+          1.0,
+          100.0
+        ],
+        "num_0": [
+          2.0,
+          1000000.0
+        ],
+        "nuc_0": [
+          800000000.0,
+          800000000.0
+        ],
+        "t_j": [
+          200.0,
+          200.0
+        ],
+        "g": [
+          1.5,
+          3.5
+        ]
+      },
+      "max_rest_freq": 2470000.0,
+      "fit_xrt": false,
+      "mcmc_mode": "adaptive",
+      "nwalkers": 32,
+      "burn_in": 1000,
+      "nsteps": 2000,
+      "max_steps": 50000,
+      "check_interval": 1000,
+      "autocorr_ratio": 50,
+      "autocorr_tol": 0.02,
+      "param_keys": [
+        "f0",
+        "f0_rev",
+        "nua0_rev",
+        "num0_rev",
+        "nua_0",
+        "num_0",
+        "g"
+      ],
+      "fixed_params": {
+        "nuc0_rev": 800000000.0,
+        "nuc_0": 800000000.0
+      }
+    }
+  }
+}

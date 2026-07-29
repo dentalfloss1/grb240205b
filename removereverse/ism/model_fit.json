@@ -1,0 +1,159 @@
+{
+  "format": "grbfit.model_fit",
+  "format_version": 1,
+  "burst": {
+    "name": "GRB240205B",
+    "t0": 1.0,
+    "t0_rev": 0.05,
+    "fitstart": 0.01,
+    "z": 0.824
+  },
+  "model": {
+    "type": "forward_only",
+    "k": 0,
+    "p": 2.2,
+    "reverse_shell": "thick",
+    "fit_g": false
+  },
+  "fit": {
+    "param_keys": [
+      "f0",
+      "nua_0",
+      "num_0"
+    ],
+    "fixed_params": {
+      "nuc_0": 800000000.0
+    },
+    "parameters": {
+      "f0": {
+        "value": 0.0007223109476542536,
+        "errneg": 2.678710522094807e-05,
+        "errpos": 0.0001535993341706724,
+        "status": "fitted",
+        "unit": "Jy"
+      },
+      "nua_0": {
+        "value": 6.568383620933707,
+        "errneg": 0.5538762567981435,
+        "errpos": 2.5374540208945096,
+        "status": "fitted",
+        "unit": "GHz"
+      },
+      "num_0": {
+        "value": 485.1570068486085,
+        "errneg": 156.1087981443306,
+        "errpos": 40.22630143592585,
+        "status": "fitted",
+        "unit": "GHz"
+      },
+      "nuc_0": {
+        "value": 800000000.0,
+        "errneg": null,
+        "errpos": null,
+        "status": "fixed",
+        "unit": "GHz"
+      }
+    },
+    "fixed_parameters": [
+      "nuc_0"
+    ],
+    "units": {
+      "flux": "Jy",
+      "frequency": "GHz",
+      "time": "d"
+    }
+  },
+  "goodness": {
+    "ndata": 25,
+    "nfit": 3,
+    "DOF": 22,
+    "chisq": 85.74998116428802,
+    "redchisq": 3.8977264165585463,
+    "AIC": 91.74998116428802,
+    "BIC": 95.40660863889262
+  },
+  "config": {
+    "burst": {
+      "name": "GRB240205B",
+      "t0": 1.0,
+      "t0_rev": 0.05,
+      "fitstart": 0.01,
+      "z": 0.824
+    },
+    "data": {
+      "radio_file": "grbmeas.csv",
+      "other_file": "otherdata.txt",
+      "batxrt_file": null,
+      "xrt_photon_index": null,
+      "absorption_ratio": null
+    },
+    "model": {
+      "type": "forward_only",
+      "k": 0,
+      "p": 2.2,
+      "reverse_shell": "thick",
+      "fit_g": false
+    },
+    "fit": {
+      "initial_guess": {
+        "f0": 0.001,
+        "f0_rev": 0.0005,
+        "nua0_rev": 10.0,
+        "num0_rev": 500.0,
+        "nuc0_rev": 800000000.0,
+        "nua_0": 13.0,
+        "num_0": 20000.0,
+        "nuc_0": 800000000.0,
+        "t_j": null
+      },
+      "bounds": {
+        "f0": [
+          0.0005,
+          100.0
+        ],
+        "f0_rev": [
+          1e-05,
+          1.0
+        ],
+        "nua0_rev": [
+          1.0,
+          50.0
+        ],
+        "num0_rev": [
+          10.0,
+          1000.0
+        ],
+        "nuc0_rev": [
+          800000000.0,
+          800000000.0
+        ],
+        "nua_0": [
+          1.0,
+          100.0
+        ],
+        "num_0": [
+          100.0,
+          100000.0
+        ],
+        "nuc_0": [
+          800000000.0,
+          800000000.0
+        ],
+        "t_j": [
+          200.0,
+          200.0
+        ]
+      },
+      "max_rest_freq": 2470000.0,
+      "fit_xrt": false,
+      "param_keys": [
+        "f0",
+        "nua_0",
+        "num_0"
+      ],
+      "fixed_params": {
+        "nuc_0": 800000000.0
+      }
+    }
+  }
+}
