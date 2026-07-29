@@ -15,6 +15,8 @@ model:
   type: forward_reverse
   k: 2
   p: 2.2
+  reverse_shell: thick
+  fit_g: false
 fit:
   initial_guess:
     f0: 0.001
@@ -68,10 +70,10 @@ fit:
     nuc_0: 800000000.0
 
 === GOODNESS OF FIT ===
-Data points used: 57
+Data points used: 41
 Fitted parameters: 6
-Degrees of freedom: 57 - 6 = 51
-Chi-square: 196.955
-Reduced chi-square: 3.86187
-AIC: 208.955
-BIC: 221.213
+Degrees of freedom: 41 - 6 = 35
+Chi-square: 97.5732
+Reduced chi-square: 2.78781
+AIC: 109.573
+BIC: 119.855

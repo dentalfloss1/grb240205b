@@ -36,11 +36,11 @@ fit:
     # The fixed value will be the corresponding initial_guess value.
     f0: [5e-4, 1]
     f0_rev: [3e-5, 1]
-    nua0_rev: [1, 50]
-    num0_rev: [20, 1000]
+    nua0_rev: [1, 100]
+    num0_rev: [2, 1e6]
     nuc0_rev: [8e8, 8e8]
     nua_0: [1, 100]
-    num_0: [20, 1e6]
+    num_0: [2, 1e6]
     nuc_0: [8e8, 8e8]
     t_j: [200, 200]
   max_rest_freq: 2.47e6 # GHz, FUV in rest frame, only used in z is defined.
