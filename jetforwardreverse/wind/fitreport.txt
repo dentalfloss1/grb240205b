@@ -22,7 +22,7 @@ fit:
     f0: 0.001
     f0_rev: 0.0005
     nua0_rev: 10.0
-    num0_rev: 500.0
+    num0_rev: 0.5
     nuc0_rev: 800000000.0
     nua_0: 13.0
     num_0: 20000.0
@@ -39,8 +39,8 @@ fit:
     - 1.0
     - 50.0
     num0_rev:
-    - 10.0
-    - 1000.0
+    - 0.5
+    - 0.5
     nuc0_rev:
     - 800000000.0
     - 800000000.0
@@ -62,19 +62,19 @@ fit:
   - f0
   - f0_rev
   - nua0_rev
-  - num0_rev
   - nua_0
   - num_0
   - t_j
   fixed_params:
+    num0_rev: 0.5
     nuc0_rev: 800000000.0
     nuc_0: 800000000.0
 
 === GOODNESS OF FIT ===
 Data points used: 41
-Fitted parameters: 7
-Degrees of freedom: 41 - 7 = 34
-Chi-square: 97.6616
-Reduced chi-square: 2.8724
-AIC: 111.662
-BIC: 123.657
+Fitted parameters: 6
+Degrees of freedom: 41 - 6 = 35
+Chi-square: 107.318
+Reduced chi-square: 3.06622
+AIC: 119.318
+BIC: 129.599
