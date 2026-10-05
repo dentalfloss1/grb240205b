@@ -30,7 +30,7 @@ fit:
     nua_0: 13
     num_0: 1e3
     nuc_0: 8e8
-    t_j: 20
+    t_j: 100
   bounds:
     # Set lower and upper equal to remove a parameter from fitting.
     # The fixed value will be the corresponding initial_guess value.
@@ -42,6 +42,6 @@ fit:
     nua_0: [1, 100]
     num_0: [2, 1e4]
     nuc_0: [8e8, 8e8]
-    t_j: [2, 200]
-  max_rest_freq: 2.47e6 # GHz, FUV in rest frame, only used in z is defined.
+    t_j: [20, 200]
+  max_rest_freq: 1000 # GHz, FUV in rest frame, only used in z is defined.
   fit_xrt: false

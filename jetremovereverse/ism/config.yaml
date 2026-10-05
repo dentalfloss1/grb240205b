@@ -15,7 +15,7 @@ data:
   # Unabsorbed flux / observed flux from the XRT spectrum.
   absorption_ratio: null
 
-model:
+model: 
   type: forward_only   # options: forward_only, forward_reverse
   k: 0
   p: 2.2
@@ -40,8 +40,8 @@ fit:
     num0_rev: [10, 1000]
     nuc0_rev: [8e8, 8e8]
     nua_0: [1, 100]
-    num_0: [100, 1e5]
+    num_0: [100, 1e6]
     nuc_0: [8e8, 8e8]
-    t_j: [20, 200]
+    t_j: [2, 200]
   max_rest_freq: 2.47e6 # GHz, FUV in rest frame, only used in z is defined.
   fit_xrt: false

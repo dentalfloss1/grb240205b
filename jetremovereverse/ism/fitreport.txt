@@ -28,6 +28,7 @@ fit:
     num_0: 20000.0
     nuc_0: 800000000.0
     t_j: 100.0
+    p: 2.2
   bounds:
     f0:
     - 0.0005
@@ -49,13 +50,16 @@ fit:
     - 100.0
     num_0:
     - 100.0
-    - 100000.0
+    - 1000000.0
     nuc_0:
     - 800000000.0
     - 800000000.0
     t_j:
-    - 20.0
+    - 2.0
     - 200.0
+    p:
+    - 2.2
+    - 2.2
   max_rest_freq: 2470000.0
   fit_xrt: false
   param_keys:
@@ -65,12 +69,13 @@ fit:
   - t_j
   fixed_params:
     nuc_0: 800000000.0
+    p: 2.2
 
 === GOODNESS OF FIT ===
-Data points used: 25
+Data points used: 41
 Fitted parameters: 4
-Degrees of freedom: 25 - 4 = 21
-Chi-square: 77.3112
-Reduced chi-square: 3.68149
-AIC: 85.3112
-BIC: 90.1867
+Degrees of freedom: 41 - 4 = 37
+Chi-square: 265.519
+Reduced chi-square: 7.17619
+AIC: 273.519
+BIC: 280.373

@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Fit the radio data and make publication-style lightcurve/residual plots."""
+"""Fit radio data and plot radio fits plus held-out optical/IR extrapolations."""
 
 import argparse
 import datetime as dt
+import hashlib
 import json
 import os
 import tempfile
@@ -14,6 +15,7 @@ os.environ.setdefault(
 )
 
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 import numpy as np
 import pandas as pd
 import yaml
@@ -49,19 +51,14 @@ RADIO_PANELS = [
 
 PANEL_SPECS = RADIO_PANELS
 
-MARKERS = ["o", "s", "^", "D", "P", "X", "v", "*", "<", ">"]
-COLORS = [
-    "black",
-    "0.35",
-    "tab:blue",
-    "tab:orange",
-    "tab:green",
-    "tab:red",
-    "tab:purple",
-    "tab:brown",
-    "tab:pink",
-    "tab:gray",
-]
+# Detection markers only; v/^ are reserved for upper/lower limits.
+MARKERS = ["o", "s", "X", "*"]
+# Okabe-Ito colors, supplemented by marker shapes and line styles.
+COLORS = ["#0072B2", "#D55E00", "#009E73", "#CC79A7", "#E69F00", "#56B4E9", "black"]
+PROFILE_STYLES = {
+    "wind": ("#0072B2", "-", "Wind: forward + reverse"),
+    "ism": ("#D55E00", "--", "ISM: forward + reverse"),
+}
 
 BAND_LABELS = {
     0.81: "0.81 GHz",
@@ -74,11 +71,28 @@ BAND_LABELS = {
     16.7: "16.7 GHz",
     21.2: "21.2 GHz",
 }
+OPTICAL_IR_BANDS = {
+    180380.540313: "H",
+    239833.9664: "J",
+    371950.940447: "I",
+    455611.638298: "R",
+    485415.249352: "r",
+    544087.945554: "V",
+    628495.719078: "g",
+    673690.916854: "B",
+}
+EXTRAPOLATION_REFERENCE_GHZ = 485415.249352  # r band, observer frame
+EXTRAPOLATION_P = 2.2
+RADIO_BAND_STYLES = {
+    freq: (MARKERS[index % len(MARKERS)], COLORS[index % len(COLORS)])
+    for _, select in RADIO_PANELS
+    for index, freq in enumerate(freq for freq in BAND_LABELS if select(freq))
+}
 
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Fit radio data with grbfit and make publication lightcurve/residual plots."
+        description="Fit radio data with grbfit and plot radio fits and optical/IR extrapolations."
     )
     parser.add_argument(
         "--config",
@@ -112,6 +126,12 @@ def parse_args():
     )
     parser.add_argument("--force-refit", action="store_true")
     parser.add_argument("--n-draws", type=int, default=50)
+    parser.add_argument("--extrapolation-draws", type=int, default=500)
+    parser.add_argument(
+        "--extrapolation-output",
+        default=str(PUBLICATION_PLOTS_DIR / "publication_optical_ir_extrapolation.png"),
+        help="Single-panel multiband extrapolation figure; also writes a matching PDF.",
+    )
     parser.add_argument(
         "--output",
         default=str(PUBLICATION_PLOTS_DIR / "publication_lightcurves_{profile}.png"),
@@ -189,10 +209,26 @@ def load_config(path):
         cfg = yaml.safe_load(handle)
     absolutize_data_paths(cfg, path)
     cfg = normalize_config(cfg)
-    # This publication analysis intentionally fits and plots radio data only.
+    # Non-radio observations must never enter the publication fits.
     cfg["data"].pop("other_file", None)
     cfg["data"].pop("batxrt_file", None)
     return cfg
+
+
+def radio_data(df):
+    """Enforce radio-only inputs independently of frequency cuts in a config."""
+    return df.loc[df["instrument"] == "radio"].copy()
+
+
+def load_comparison_data(config_path):
+    """Load held-out photometry separately from the fitting configuration."""
+    with open(config_path) as handle:
+        cfg = yaml.safe_load(handle)
+    absolutize_data_paths(cfg, config_path)
+    path = cfg.get("data", {}).get("other_file")
+    if path is None:
+        return pd.DataFrame(columns=["obsdate", "freq", "flux", "err", "rms"])
+    return pd.read_csv(path)
 
 
 def config_text(path):
@@ -237,7 +273,10 @@ def cache_key(config_path, overrides, profile):
             "config_text": config_text(config_path),
             "mcmc_overrides": overrides,
             "profile": profile,
-            "data_scope": "radio_only",
+            "data_scope": "radio_only_v1",
+            "radio_sha256": hashlib.sha256(
+                Path(load_config(config_path)["data"]["radio_file"]).read_bytes()
+            ).hexdigest(),
         },
         sort_keys=True,
     )
@@ -267,8 +306,12 @@ def get_samples(cfg, config_path, cache_path, overrides, profile, force_refit=Fa
         print(f"Loaded posterior samples from {cache_path}")
         return keys, samples, diagnostics
 
-    df = load_data(cfg)
-    xdata, ydata, yerr, _, _, _ = prepare_fit_data(df, cfg)
+    df = radio_data(load_data(cfg))
+    xdata, ydata, yerr, upper, excluded, _ = prepare_fit_data(df, cfg)
+    print(
+        f"Radio input: {len(df)} rows; likelihood: {len(ydata)} detections; "
+        f"limits: {len(upper)}; outside fitting cuts: {len(excluded)}"
+    )
     keys, sampler = run_mcmc(cfg, xdata, ydata, yerr)
     diagnostics = getattr(sampler, "grbfit_diagnostics", {})
     thin = int(diagnostics.get("thin", 1))
@@ -289,6 +332,9 @@ def get_samples(cfg, config_path, cache_path, overrides, profile, force_refit=Fa
 
 
 def freq_label(freq):
+    for known, label in OPTICAL_IR_BANDS.items():
+        if np.isclose(freq, known, rtol=0, atol=max(1e-6, abs(known) * 1e-9)):
+            return label
     for known, label in BAND_LABELS.items():
         if np.isclose(freq, known, rtol=0, atol=max(1e-6, abs(known) * 1e-9)):
             return label
@@ -304,6 +350,10 @@ def panel_mask(df, panel_index):
     else:
         instrument_mask = np.ones(len(df), dtype=bool)
     return instrument_mask & PANEL_SPECS[panel_index][1](df["freq"].to_numpy())
+
+
+def panel_time_limits(panel_index):
+    return (1e-2, 365)
 
 
 def positive(values):
@@ -329,8 +379,9 @@ def plot_data(ax, subset):
     unique_freqs = np.sort(subset["freq"].unique())
     for i, freq in enumerate(unique_freqs):
         rows = subset[np.isclose(subset["freq"], freq)]
-        marker = MARKERS[i % len(MARKERS)]
-        color = COLORS[i % len(COLORS)]
+        marker, color = RADIO_BAND_STYLES.get(
+            float(freq), (MARKERS[i % len(MARKERS)], COLORS[i % len(COLORS)])
+        )
         label = freq_label(freq)
 
         force_detection = is_nine_ghz_third_early_point(rows)
@@ -429,7 +480,7 @@ def plot_check_source(ax, panel_index, check_source):
         rows["flux"],
         yerr=total_error(rows),
         fmt="x",
-        color="green",
+        color="#009E73",
         markersize=4,
         elinewidth=0.9,
         linestyle="none",
@@ -483,7 +534,7 @@ def draw_models(ax, cfg, samples, subset, n_draws, rng, forward_only_cfg=None, f
     for index in draw_indices:
         y = model(samples[index], (t_line, nu_line)) * 1e6
         ok = positive(y)
-        ax.plot(t_line[ok], y[ok], color="navy", alpha=0.14, linewidth=0.9)
+        ax.plot(t_line[ok], y[ok], color="#0072B2", alpha=0.14, linewidth=0.9)
 
     components = evaluate_model_components(cfg, median_theta, (t_line, nu_line))
     total = components["total"] * 1e6
@@ -491,7 +542,7 @@ def draw_models(ax, cfg, samples, subset, n_draws, rng, forward_only_cfg=None, f
     ax.plot(
         t_line[ok],
         total[ok],
-        color="navy",
+        color="#0072B2",
         linewidth=1.9,
         label=f"{freq_label(freq)} Forward+Reverse",
     )
@@ -512,12 +563,12 @@ def draw_models(ax, cfg, samples, subset, n_draws, rng, forward_only_cfg=None, f
 
     forward = components["forward"] * 1e6
     ok = positive(forward)
-    ax.plot(t_line[ok], forward[ok], color="tab:red", alpha=0.55, linewidth=1.1, linestyle="-.")
+    ax.plot(t_line[ok], forward[ok], color="#D55E00", alpha=0.55, linewidth=1.1, linestyle="-.")
 
     reverse = components["reverse"] * 1e6
     ok = positive(reverse)
     if np.any(ok):
-        ax.plot(t_line[ok], reverse[ok], color="tab:red", alpha=0.55, linewidth=1.1, linestyle=":")
+        ax.plot(t_line[ok], reverse[ok], color="#D55E00", alpha=0.55, linewidth=1.1, linestyle=":")
 
 
 def set_lightcurve_limits(ax, subset):
@@ -555,7 +606,7 @@ def make_lightcurve_plot(
     forward_only_cfg=None,
     forward_only_samples=None,
 ):
-    fig, axes = plt.subplots(3, 2, figsize=(15, 14), sharex=True)
+    fig, axes = plt.subplots(3, 2, figsize=(12, 12), sharex="row")
     axes = axes.flatten()
 
     for panel_index, ax in enumerate(axes):
@@ -581,7 +632,7 @@ def make_lightcurve_plot(
         ax.set_title(PANEL_SPECS[panel_index][0], fontsize=12)
         ax.set_xscale("log")
         ax.set_yscale("log")
-        ax.set_xlim(1e-2, 365)
+        ax.set_xlim(*panel_time_limits(panel_index))
         set_lightcurve_limits(ax, subset)
         ax.set_ylabel(r"Flux Density ($\mu$Jy)")
         deduplicate_legend(ax)
@@ -596,9 +647,144 @@ def make_lightcurve_plot(
     print(f"Saved {output}")
 
 
+def extrapolation_summary(cfg, samples, times, freq, indices):
+    """Observer-frame predictions in microJy; no adjustment to held-out data."""
+    model = make_model(cfg)
+    xdata = (times, np.full_like(times, freq, dtype=float))
+    predictions = np.asarray([model(samples[index], xdata) * 1e6 for index in indices])
+    if not np.all(positive(predictions)):
+        raise ValueError(f"Nonpositive or nonfinite extrapolation at {freq:g} GHz")
+    return np.percentile(predictions, [16, 50, 84], axis=0)
+
+
+def scale_photometry_to_reference(observations, reference_freq=EXTRAPOLATION_REFERENCE_GHZ,
+                                  p=EXTRAPOLATION_P):
+    """Convert F_nu and its uncertainties to F_nu0 for F_nu proportional to nu^-beta."""
+    scaled = observations.copy()
+    factors = (scaled["freq"] / reference_freq) ** ((p - 1) / 2)
+    for column in ("flux", "err", "rms"):
+        scaled[column] = scaled[column] * factors
+    return scaled
+
+
+def make_extrapolation_plot(jobs, output, n_draws, seed):
+    if n_draws < 1:
+        raise ValueError("--extrapolation-draws must be positive")
+    # Compare each model against the same observations, without duplicating rows
+    # from the two profile configs (or discarding repeated measurements).
+    observations = jobs[0]["comparison_df"].reset_index(drop=True)
+    columns = ["obsdate", "freq", "flux", "err", "rms"]
+    canonical = observations[columns].sort_values(columns).reset_index(drop=True)
+    for job in jobs[1:]:
+        other = job["comparison_df"][columns].sort_values(columns).reset_index(drop=True)
+        if not canonical.equals(other):
+            raise ValueError("Profile configs reference different optical/IR observations")
+    if observations.empty:
+        raise ValueError("No optical/IR observations available for extrapolation")
+    if not np.all(positive(observations["obsdate"])):
+        raise ValueError("Extrapolation observations require finite positive times")
+    known = np.zeros(len(observations), dtype=bool)
+    for freq in OPTICAL_IR_BANDS:
+        known |= np.isclose(observations["freq"], freq, rtol=1e-9, atol=1e-6)
+    if not known.all():
+        raise ValueError("Unrecognized comparison band; extend OPTICAL_IR_BANDS before plotting")
+    observations = scale_photometry_to_reference(observations)
+
+    tmin = observations["obsdate"].min() / 1.5
+    tmax = observations["obsdate"].max() * 1.5
+    times = np.geomspace(tmin, tmax, 300)
+    draws = {}
+    for job in jobs:
+        rng = np.random.default_rng(seed + (100 if job["profile"] == "wind" else 101))
+        draws[job["profile"]] = rng.choice(
+            len(job["samples"]), min(n_draws, len(job["samples"])), replace=False
+        )
+
+    # Redundant band encoding keeps the observations identifiable in grayscale.
+    band_colors = ["#0072B2", "#D55E00", "#009E73", "#CC79A7",
+                   "#E69F00", "#56B4E9", "#222222", "#8C6D00"]
+    band_markers = ["o", "s", "D", "P", "X", "h", "*", "8"]
+    with plt.rc_context({"font.size": 11, "axes.titlesize": 15, "axes.labelsize": 12,
+                         "xtick.labelsize": 11, "ytick.labelsize": 11,
+                         "axes.spines.top": False, "axes.spines.right": False}):
+        fig, ax = plt.subplots(figsize=(7.5, 5.25), layout="constrained")
+        extents = []
+        band_handles = []
+        # Evaluate each physical model directly at the reference frequency.
+        for job in jobs:
+            color, linestyle, _ = PROFILE_STYLES[job["profile"]]
+            low, median, high = extrapolation_summary(
+                job["cfg"], job["samples"], times, EXTRAPOLATION_REFERENCE_GHZ,
+                draws[job["profile"]]
+            )
+            ax.fill_between(times, low, high, color=color, alpha=0.13, linewidth=0)
+            ax.plot(times, median, color=color, linestyle=linestyle,
+                    linewidth=2, zorder=2)
+            extents.extend([low.min(), high.max()])
+        for (freq, band), color, marker in zip(
+                OPTICAL_IR_BANDS.items(), band_colors, band_markers):
+            rows = observations[np.isclose(observations["freq"], freq, rtol=1e-9, atol=1e-6)]
+            detected = (rows["flux"] > 0) & (rows["err"] > 0)
+            det = rows[detected]
+            if len(det):
+                errors = total_error(det)
+                ax.errorbar(det["obsdate"], det["flux"], yerr=errors, fmt=marker,
+                            color=color, markerfacecolor="white", markeredgewidth=1.3,
+                            markersize=7 if marker == "*" else 5.5,
+                            elinewidth=1.25, capsize=3.5, capthick=1.25,
+                            barsabove=True, zorder=5)
+                extents.extend(det["flux"] - errors)
+                extents.extend(det["flux"] + errors)
+            limits = rows[~detected]
+            if len(limits):
+                values = 3 * np.abs(limits["rms"].to_numpy())
+                valid = positive(values)
+                ax.scatter(limits["obsdate"].to_numpy()[valid], values[valid], marker="v",
+                           color=color, s=35, zorder=5)
+                extents.extend(values[valid])
+            band_handles.append(Line2D([], [], color=color, marker=marker,
+                                       markerfacecolor="white", markeredgewidth=1.3,
+                                       markersize=6, linestyle="none", label=band))
+
+        ax.set_xscale("log")
+        ax.set_yscale("log")
+        ax.set_xlim(tmin, tmax)
+        extents = np.asarray(extents)
+        extents = extents[positive(extents)]
+        ax.set_ylim(extents.min() / 1.5, extents.max() * 1.5)
+        ax.set_xlabel("Days post-trigger")
+        ax.set_ylabel(r"$r$-band-equivalent flux density ($\mu$Jy)")
+        ax.set_title("Extrapolated Lightcurves", pad=10)
+        ax.grid(which="major", color="0.92", linewidth=0.65)
+        ax.set_axisbelow(True)
+        ax.tick_params(which="both", direction="out")
+
+        model_handles = [Line2D([], [], color=PROFILE_STYLES[job["profile"]][0], linewidth=2,
+                               linestyle=PROFILE_STYLES[job["profile"]][1],
+                               label="Wind medium" if job["profile"] == "wind" else "ISM")
+                         for job in jobs]
+        model_legend = ax.legend(handles=model_handles, loc="upper right",
+                                 title="Radio-fitted forward + reverse",
+                                 frameon=False, handlelength=3, fontsize=11, title_fontsize=10)
+        ax.add_artist(model_legend)
+        if ((observations["flux"] <= 0) | (observations["err"] <= 0)).any():
+            band_handles.append(Line2D([], [], color="black", marker="v", linestyle="none",
+                                       label=r"3$\sigma$ limit"))
+        ax.legend(handles=band_handles, loc="lower left", ncol=4,
+                  frameon=False, fontsize=11,
+                  handletextpad=0.3, columnspacing=1.0, borderaxespad=0.7)
+        output = Path(output)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(output, dpi=300, facecolor="white")
+        if output.suffix.lower() != ".pdf":
+            fig.savefig(output.with_suffix(".pdf"), facecolor="white")
+        plt.close(fig)
+        print(f"Saved {output} and matching PDF")
+
+
 def residual_dataframe(cfg, samples, df):
     model = make_model(cfg)
-    fit_df = df.copy()
+    fit_df = radio_data(df)
     if cfg["burst"].get("z") is not None:
         fit_df["freq_rest"] = fit_df["freq"] * (1 + cfg["burst"]["z"])
     else:
@@ -643,13 +829,9 @@ def residual_axis_limit(residual_frames):
     return max_abs
 
 
-def radio_fit_statistics(cfg, samples, df):
-    """Calculate goodness-of-fit metrics from radio detections only."""
-    if "instrument" not in df.columns:
-        raise ValueError("Loaded data do not identify their instrument.")
-
-    radio_df = df[df["instrument"] == "radio"].copy()
-    xdata, ydata, yerr, _, _, _ = prepare_fit_data(radio_df, cfg)
+def fit_statistics(cfg, samples, df):
+    """Calculate goodness-of-fit metrics from all fitted detections."""
+    xdata, ydata, yerr, _, _, _ = prepare_fit_data(radio_data(df), cfg)
     return calculate_goodness_of_fit(cfg, samples, xdata, ydata, yerr)
 
 
@@ -678,7 +860,7 @@ def make_residual_plot(cfg, samples, df, output, profile_title, resid=None, max_
     if max_abs is None:
         max_abs = residual_axis_limit([resid])
 
-    fig, axes = plt.subplots(3, 2, figsize=(15, 10), sharex=True)
+    fig, axes = plt.subplots(3, 2, figsize=(12, 10), sharex="row")
     axes = axes.flatten()
 
     for panel_index, ax in enumerate(axes):
@@ -689,11 +871,14 @@ def make_residual_plot(cfg, samples, df, output, profile_title, resid=None, max_
 
         for i, freq in enumerate(np.sort(subset["freq"].unique())):
             rows = subset[np.isclose(subset["freq"], freq)].sort_values("obsdate")
+            marker, color = RADIO_BAND_STYLES.get(
+                float(freq), (MARKERS[i % len(MARKERS)], COLORS[i % len(COLORS)])
+            )
             ax.scatter(
                 rows["obsdate"],
                 rows["residual_sigma"],
-                marker=MARKERS[i % len(MARKERS)],
-                color=COLORS[i % len(COLORS)],
+                marker=marker,
+                color=color,
                 s=32,
                 label=freq_label(freq),
             )
@@ -703,7 +888,7 @@ def make_residual_plot(cfg, samples, df, output, profile_title, resid=None, max_
         ax.axhline(-1, color="0.65", linewidth=0.8, linestyle="--")
         ax.set_title(PANEL_SPECS[panel_index][0], fontsize=12)
         ax.set_xscale("log")
-        ax.set_xlim(1e-2, 365)
+        ax.set_xlim(*panel_time_limits(panel_index))
         ax.set_ylim(-max_abs, max_abs)
         ax.set_ylabel(r"Residual ($\sigma$)")
         deduplicate_legend(ax)
@@ -766,7 +951,7 @@ def main():
             f"{profile}:forward_only",
             force_refit=args.force_refit,
         )
-        df = load_data(cfg)
+        df = radio_data(load_data(cfg))
         print(f"Plotting {profile} profile: {len(df)} data rows with {len(samples)} posterior samples")
         if diagnostics:
             print("Sampler diagnostics:", diagnostics)
@@ -777,7 +962,7 @@ def main():
             ("forward_reverse", cfg, samples),
             ("forward_only", forward_cfg, forward_samples),
         ]:
-            metrics = radio_fit_statistics(model_cfg, model_samples, df)
+            metrics = fit_statistics(model_cfg, model_samples, df)
             statistics_rows.append(
                 {
                     "profile": profile,
@@ -797,6 +982,7 @@ def main():
         plot_jobs.append(
             {
                 "profile": profile,
+                "comparison_df": load_comparison_data(config_path),
                 "rng": rng,
                 "cfg": cfg,
                 "samples": samples,
@@ -809,6 +995,7 @@ def main():
             }
         )
 
+    make_extrapolation_plot(plot_jobs, args.extrapolation_output, args.extrapolation_draws, args.seed)
     write_fit_statistics(statistics_rows, args.fit_statistics_output)
     residual_max_abs = residual_axis_limit([job["resid"] for job in plot_jobs])
 
