@@ -28,6 +28,7 @@ fit:
     num_0: 20000.0
     nuc_0: 800000000.0
     t_j: null
+    p: 2.2
   bounds:
     f0:
     - 0.0005
@@ -56,6 +57,9 @@ fit:
     t_j:
     - 200.0
     - 200.0
+    p:
+    - 2.2
+    - 2.2
   max_rest_freq: 2470000.0
   fit_xrt: false
   param_keys:
@@ -68,12 +72,13 @@ fit:
     num0_rev: 0.5
     nuc0_rev: 800000000.0
     nuc_0: 800000000.0
+    p: 2.2
 
 === GOODNESS OF FIT ===
 Data points used: 57
 Fitted parameters: 5
 Degrees of freedom: 57 - 5 = 52
-Chi-square: 204.629
-Reduced chi-square: 3.93517
-AIC: 214.629
-BIC: 224.844
+Chi-square: 206.234
+Reduced chi-square: 3.96604
+AIC: 216.234
+BIC: 226.449
